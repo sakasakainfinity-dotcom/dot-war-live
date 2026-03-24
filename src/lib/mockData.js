@@ -1,33 +1,3 @@
-export type Team = 'blue' | 'red';
-
-export interface MatchTitleData {
-  titleJa: string;
-  titleEn: string;
-}
-
-export interface SuperChatData {
-  user: string;
-  amount: string;
-  message: string;
-}
-
-export interface RankingEntry {
-  rank: 1 | 2 | 3;
-  name: string;
-  amount: string;
-}
-
-export interface BattleMockData {
-  title: MatchTitleData;
-  timerSeconds: number;
-  updateIntervalSeconds: number;
-  blueTank: number;
-  redTank: number;
-  grid: Team[][];
-  superChat: SuperChatData;
-  ranking: RankingEntry[];
-}
-
 const width = 26;
 const height = 14;
 
@@ -38,7 +8,7 @@ const grid = Array.from({ length: height }, (_, y) =>
   }),
 );
 
-export const battleMockData: BattleMockData = {
+export const battleMockData = {
   title: {
     titleJa: '都会 VS 田舎',
     titleEn: 'URBAN VS COUNTRYSIDE',
