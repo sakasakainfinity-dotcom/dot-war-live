@@ -37,6 +37,7 @@ export function BattleLayout({ data = battleMockData }) {
             onUpdateTick={handleUpdateTick}
           />
         </section>
+        <SuperChatBanner chat={data.superChat} />
 
         <section className="hud-center">
           <TeamTank team="blue" value={data.blueTank} />
@@ -53,8 +54,7 @@ export function BattleLayout({ data = battleMockData }) {
           <p className="hud-main-text">Join by comment</p>
           <p className="hud-sub-text">コメントで参加（YouTubeアプリから）</p>
         </div>
-        <CommandGuideDock guides={data.commandGuides} />
-        <SuperChatBanner chat={data.superChat} />
+        <CommandGuideDock commands={data.commandGuides} />
       </div>
     </main>
   );

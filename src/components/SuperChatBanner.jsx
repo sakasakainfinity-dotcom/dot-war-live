@@ -19,7 +19,9 @@ export function SuperChatBanner({ chat, durationMs = 5000 }) {
     <div className="superchat-wrap">
       <div className="panel superchat-panel">
         <p>
-          <strong>{chat.user}</strong> <span>{chat.amount}</span> {chat.message}
+          <strong>{chat.user}</strong>
+          <span className="superchat-amount">{chat.amount}</span>
+          <span className="superchat-message">{chat.message}</span>
         </p>
       </div>
     </div>
