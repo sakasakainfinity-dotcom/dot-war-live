@@ -30,9 +30,15 @@ export function CountdownTimer({ initialSeconds, intervalSeconds = 300, onUpdate
 
   return (
     <section className={`panel timer-panel ${remainingSeconds <= 30 ? 'timer-alert' : ''}`}>
-      <p className="timer-label">NEXT UPDATE</p>
+      <p className="timer-label hud-main-text">NEXT UPDATE</p>
+      <p className="timer-sub-label hud-sub-text">次回更新</p>
       <p className="timer-value">{mmss}</p>
-      {isUpdating && <p className="timer-updating">UPDATE / 反映中</p>}
+      {isUpdating && (
+        <p className="timer-updating">
+          <span className="hud-main-text">UPDATING</span>
+          <span className="hud-sub-text">反映中</span>
+        </p>
+      )}
     </section>
   );
 }

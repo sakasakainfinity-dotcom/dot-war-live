@@ -48,7 +48,10 @@ export function BattleLayout({ data = battleMockData }) {
           </div>
         </section>
 
-        <div className="hud-join">コメントで参加 / コメントはYouTubeアプリから</div>
+        <div className="hud-join panel">
+          <p className="hud-main-text">Join by comment</p>
+          <p className="hud-sub-text">コメントで参加（YouTubeアプリから）</p>
+        </div>
         <SuperChatBanner chat={data.superChat} />
       </div>
     </main>
