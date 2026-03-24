@@ -29,29 +29,13 @@ export const battleMockData = {
     { rank: 3, name: 'Taro', amount: '¥1,500' },
   ],
   commandGuides: [
-    {
-      team: 'blue',
-      titleEn: 'Blue Team',
-      titleJa: '青',
-      rows: [
-        { code: 'A', labelEn: 'Vote', labelJa: '青に1票' },
-        { code: 'AA', labelEn: 'Attack', labelJa: '1マス破壊' },
-        { code: 'AAA', labelEn: 'Mega', labelJa: '3マス破壊' },
-        { code: '300A', labelEn: 'Boost', labelJa: '3倍投票' },
-        { code: '500A', labelEn: 'Smash', labelJa: '5マス破壊' },
-      ],
-    },
-    {
-      team: 'red',
-      titleEn: 'Red Team',
-      titleJa: '赤',
-      rows: [
-        { code: 'B', labelEn: 'Vote', labelJa: '赤に1票' },
-        { code: 'BB', labelEn: 'Attack', labelJa: '1マス破壊' },
-        { code: 'BBB', labelEn: 'Mega', labelJa: '3マス破壊' },
-        { code: '300B', labelEn: 'Boost', labelJa: '3倍投票' },
-        { code: '500B', labelEn: 'Smash', labelJa: '5マス破壊' },
-      ],
-    },
+    { code: 'A', team: 'blue', labelEn: 'Vote', labelJa: '青に1票' },
+    { code: 'AA', team: 'blue', labelEn: 'Attack', labelJa: '1マス破壊' },
+    { code: '300A', team: 'blue', labelEn: 'Boost', labelJa: '3倍投票' },
+    { code: '500A', team: 'blue', labelEn: 'Smash', labelJa: '5マス破壊' },
+    { code: 'B', team: 'red', labelEn: 'Vote', labelJa: '赤に1票' },
+    { code: 'BB', team: 'red', labelEn: 'Attack', labelJa: '1マス破壊' },
+    { code: '300B', team: 'red', labelEn: 'Boost', labelJa: '3倍投票' },
+    { code: '500B', team: 'red', labelEn: 'Smash', labelJa: '5マス破壊' },
   ],
 };
