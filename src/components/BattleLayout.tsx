@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { battleMockData, type BattleMockData } from '@/lib/mockData';
+import { battleMockData, type BattleMockData } from '../lib/mockData';
 import { BattleGrid } from './BattleGrid';
 import { CountdownTimer } from './CountdownTimer';
 import { MatchTitle } from './MatchTitle';

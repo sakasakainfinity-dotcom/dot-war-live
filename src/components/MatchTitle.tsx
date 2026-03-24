@@ -1,4 +1,4 @@
-import type { MatchTitleData } from '@/lib/mockData';
+import type { MatchTitleData } from '../lib/mockData';
 
 interface MatchTitleProps {
   title: MatchTitleData;

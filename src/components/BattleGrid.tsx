@@ -1,4 +1,4 @@
-import type { Team } from '@/lib/mockData';
+import type { Team } from '../lib/mockData';
 
 interface BattleGridProps {
   grid: Team[][];

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { SuperChatData } from '@/lib/mockData';
+import type { SuperChatData } from '../lib/mockData';
 
 interface SuperChatBannerProps {
   chat: SuperChatData;
