@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { battleMockData } from '../lib/mockData';
 import { BattleGrid } from './BattleGrid';
+import { CommandGuideDock } from './CommandGuideDock';
 import { CountdownTimer } from './CountdownTimer';
 import { MatchTitle } from './MatchTitle';
 import { SuperChatBanner } from './SuperChatBanner';
@@ -52,6 +53,7 @@ export function BattleLayout({ data = battleMockData }) {
           <p className="hud-main-text">Join by comment</p>
           <p className="hud-sub-text">コメントで参加（YouTubeアプリから）</p>
         </div>
+        <CommandGuideDock guides={data.commandGuides} />
         <SuperChatBanner chat={data.superChat} />
       </div>
     </main>
