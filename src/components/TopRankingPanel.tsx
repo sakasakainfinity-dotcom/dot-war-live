@@ -1,4 +1,4 @@
-import type { RankingEntry } from '@/lib/mockData';
+import type { RankingEntry } from '../lib/mockData';
 
 interface TopRankingPanelProps {
   ranking: RankingEntry[];
