@@ -38,26 +38,36 @@ export function CountdownTimer({
     return `${min}:${sec}`;
   }, [remainingSeconds]);
 
-  const isAlert = remainingSeconds <= 30;
+  const alertLevel = remainingSeconds <= 30;
 
   return (
-    <div className="relative mx-auto mt-3 w-fit rounded-lg border border-slate-700 bg-slate-950/90 px-6 py-2 text-center">
-      <p className="text-[10px] font-bold tracking-[0.24em] text-slate-400">NEXT UPDATE</p>
-      <p
-        className={`text-4xl font-black tabular-nums md:text-5xl ${
-          isAlert
-            ? 'animate-pulse text-amber-300 drop-shadow-[0_0_14px_rgba(251,191,36,0.8)]'
-            : 'text-white'
+    <section className="relative w-fit min-w-[190px]">
+      <div className="pointer-events-none absolute inset-0 -z-10 rounded-2xl bg-gradient-to-b from-amber-300/20 to-red-500/20 blur-lg" />
+      <div
+        className={`relative overflow-hidden rounded-2xl border bg-slate-950/85 px-5 py-3 text-center transition-all ${
+          alertLevel
+            ? 'border-amber-300/80 shadow-[0_0_25px_rgba(251,191,36,0.35)]'
+            : 'border-slate-500/70 shadow-[0_0_22px_rgba(15,23,42,0.6)]'
         }`}
       >
-        {mmss}
-      </p>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400/60 via-amber-300/80 to-red-400/60" />
+        <p className="text-[10px] font-black tracking-[0.28em] text-slate-300">NEXT UPDATE</p>
+        <p
+          className={`mt-0.5 text-4xl font-black leading-none tabular-nums md:text-5xl ${
+            alertLevel
+              ? 'animate-pulse text-amber-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.8)]'
+              : 'text-slate-50 drop-shadow-[0_0_10px_rgba(125,211,252,0.35)]'
+          }`}
+        >
+          {mmss}
+        </p>
+      </div>
 
       {isUpdating && (
-        <div className="absolute inset-0 grid place-items-center rounded-lg bg-slate-950/95 text-lg font-black text-cyan-300">
+        <div className="absolute inset-0 grid place-items-center rounded-2xl border border-cyan-300/80 bg-slate-950/95 text-sm font-black tracking-[0.2em] text-cyan-200">
           UPDATE / 反映中
         </div>
       )}
-    </div>
+    </section>
   );
 }
