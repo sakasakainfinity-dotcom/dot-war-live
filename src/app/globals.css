@@ -25,7 +25,7 @@ body {
   position: relative;
   width: min(100vw, calc(100vh * (16 / 9)));
   aspect-ratio: 16 / 9;
-  padding: 1.2rem;
+  padding: 1rem 1.2rem 0.9rem;
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 0.9rem;
@@ -36,6 +36,18 @@ body {
   border-radius: 14px;
   background: rgba(2, 6, 23, 0.75);
   box-shadow: 0 10px 25px rgba(2, 6, 23, 0.45);
+}
+
+.hud-main-text {
+  margin: 0;
+  font-weight: 850;
+}
+
+.hud-sub-text {
+  margin: 0;
+  opacity: 0.72;
+  font-size: 0.72em;
+  font-weight: 600;
 }
 
 .hud-topbar {
@@ -50,17 +62,17 @@ body {
   display: grid;
   align-content: center;
 }
-.title-ja {
+.title-en {
   margin: 0;
   font-size: clamp(1.1rem, 2.2vw, 2.1rem);
   font-weight: 900;
   letter-spacing: 0.1em;
 }
-.title-en {
+.title-ja {
   margin: 0.2rem 0 0;
-  font-size: clamp(0.55rem, 1vw, 0.78rem);
+  font-size: clamp(0.55rem, 1vw, 0.8rem);
   color: #bae6fd;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.16em;
 }
 
 .timer-panel {
@@ -70,10 +82,16 @@ body {
 }
 .timer-label {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   letter-spacing: 0.25em;
   color: #cbd5e1;
   font-weight: 700;
+}
+.timer-sub-label {
+  margin: 0.1rem 0 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: #cbd5e1;
 }
 .timer-value {
   margin: 0.15rem 0 0;
@@ -86,7 +104,9 @@ body {
 }
 .timer-updating {
   margin: 0.35rem 0 0;
-  font-size: 0.7rem;
+  display: grid;
+  gap: 0.05rem;
+  justify-items: center;
   color: #67e8f9;
 }
 
@@ -140,9 +160,17 @@ body {
   text-align: center;
   font-weight: 900;
 }
+.tank-label-wrap {
+  display: grid;
+  gap: 0.05rem;
+}
 .tank-label {
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+}
+.tank-label-ja {
+  text-align: center;
+  letter-spacing: 0.08em;
 }
 .tank-shell {
   border-radius: 18px;
@@ -196,12 +224,19 @@ body {
   padding: 0.55rem;
 }
 .ranking-title {
-  margin: 0 0 0.35rem;
+  margin: 0;
   text-align: center;
   font-weight: 800;
-  font-size: 0.65rem;
-  letter-spacing: 0.2em;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
   color: #fde68a;
+}
+.ranking-title-ja {
+  margin: 0.1rem 0 0.35rem;
+  text-align: center;
+  font-size: 0.58rem;
+  color: #fde68a;
+  letter-spacing: 0.1em;
 }
 .ranking-panel ul {
   margin: 0;
@@ -222,20 +257,120 @@ body {
 
 .hud-join {
   justify-self: center;
-  padding: 0.35rem 0.75rem;
+  padding: 0.3rem 0.85rem;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: rgba(15, 23, 42, 0.9);
-  font-weight: 700;
-  font-size: clamp(0.62rem, 1vw, 0.86rem);
+  text-align: center;
+  z-index: 2;
+}
+
+.hud-join p:first-child {
+  font-size: clamp(0.65rem, 1vw, 0.9rem);
+  letter-spacing: 0.05em;
+}
+
+.hud-join p:last-child {
+  margin-top: 0.08rem;
+  font-size: clamp(0.46rem, 0.8vw, 0.62rem);
+}
+
+.command-dock-wrap {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.6rem;
+  display: grid;
+  gap: 0.32rem;
+  z-index: 1;
+}
+
+.command-dock-hint {
+  justify-self: center;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+}
+
+.command-dock-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.command-card {
+  backdrop-filter: blur(4px);
+  padding: 0.4rem 0.5rem 0.45rem;
+  border-radius: 11px;
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.45);
+}
+
+.command-card-blue {
+  border-color: rgba(103, 232, 249, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.15), 0 6px 16px rgba(2, 6, 23, 0.45);
+}
+
+.command-card-red {
+  border-color: rgba(251, 146, 60, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.15), 0 6px 16px rgba(2, 6, 23, 0.45);
+}
+
+.command-card-header {
+  display: grid;
+  gap: 0.04rem;
+  margin-bottom: 0.26rem;
+}
+
+.command-card-title {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.command-card-title-ja {
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+}
+
+.command-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.command-row {
+  display: grid;
+  grid-template-columns: 44px 58px 1fr;
+  align-items: baseline;
+  gap: 0.36rem;
+  min-width: 0;
+}
+
+.command-code {
+  font-family: 'Consolas', 'SFMono-Regular', 'Roboto Mono', monospace;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #e2e8f0;
+}
+
+.command-label-en {
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+}
+
+.command-label-ja {
+  font-size: 0.51rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .superchat-wrap {
   position: absolute;
   left: 50%;
-  bottom: 0.7rem;
+  bottom: 5.3rem;
   transform: translateX(-50%);
   width: min(76%, 980px);
+  z-index: 2;
 }
 .superchat-panel {
   padding: 0.5rem 0.9rem;
@@ -269,5 +404,21 @@ body {
 
   .hud-ranking-wrap {
     width: min(40%, 230px);
+  }
+
+  .command-dock-wrap {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.45rem;
+  }
+
+  .command-row {
+    grid-template-columns: 36px 50px 1fr;
+    gap: 0.22rem;
+  }
+
+  .superchat-wrap {
+    bottom: 5rem;
+    width: min(79%, 680px);
   }
 }
