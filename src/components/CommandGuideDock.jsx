@@ -1,21 +1,17 @@
 const defaultCommands = [
-  { code: 'A', team: 'blue', icon: '●', count: 1, labelEn: 'A blue 1vote', labelJa: '青に1票' },
-  { code: '300A', team: 'blue', icon: '●', count: 3, labelEn: '300A 3 vote', labelJa: '青に3票', priceLabel: '¥300 / $3' },
-  { code: '500A', team: 'blue', icon: '💥', count: 3, labelEn: '500A red smash', labelJa: '赤を3マス爆破', priceLabel: '¥500 / $5' },
-  { code: 'B', team: 'red', icon: '●', count: 1, labelEn: 'B red 1 vote', labelJa: '赤に1票' },
-  { code: '300B', team: 'red', icon: '●', count: 3, labelEn: '300B 3 vote', labelJa: '赤に3票', priceLabel: '¥300 / $3' },
-  { code: '500B', team: 'red', icon: '💥', count: 3, labelEn: '500B blue smash', labelJa: '青を3マス爆破', priceLabel: '¥500 / $5' },
+  { code: 'B', team: 'blue', labelEn: '"B" = BLUE VOTE', labelJa: '青に投票' },
+  { code: '3B', team: 'blue', labelEn: '"3B" ¥300 / $3 = +BLUE ×3', labelJa: '3マス追加' },
+  { code: '5B', team: 'blue', labelEn: '"5B" ¥500 / $5 = RED💣SMASH3', labelJa: '3マス破壊' },
+  { code: 'R', team: 'red', labelEn: '"R" = RED VOTE', labelJa: '赤に投票' },
+  { code: '3R', team: 'red', labelEn: '"3R" ¥300 / $3 = +RED ×3', labelJa: '3マス追加' },
+  { code: '5R', team: 'red', labelEn: '"5R" ¥500 / $5 = BLUE💣SMASH3', labelJa: '3マス破壊' },
 ];
 
 function CommandCard({ command }) {
   return (
     <section className={`panel command-mini-card command-mini-card-${command.team}`}>
-      <span className="command-code">{command.code}</span>
-      <span className={`command-symbol command-symbol-${command.team}`}>{command.icon}</span>
-      <span className="command-count">×{command.count}</span>
       <span className="command-label-en hud-main-text">{command.labelEn}</span>
       <span className="command-label-ja hud-sub-text">{command.labelJa}</span>
-      {command.priceLabel ? <span className="command-price hud-main-text">{command.priceLabel}</span> : null}
     </section>
   );
 }
