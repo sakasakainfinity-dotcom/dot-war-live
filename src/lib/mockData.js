@@ -31,11 +31,11 @@ export const battleMockData = {
   commandGuides: [
     { code: 'A', team: 'blue', icon: '●', count: 1, labelEn: 'Vote', labelJa: '青に1票' },
     { code: 'AA', team: 'blue', icon: '💣', count: 1, labelEn: 'Break red', labelJa: '赤を1マス破壊' },
-    { code: '300A', team: 'blue', icon: '●', count: 3, labelEn: 'Boost Vote', labelJa: '青に3票' },
-    { code: '500A', team: 'blue', icon: '💣', count: 5, labelEn: 'Smash red', labelJa: '赤を5マス破壊' },
+    { code: '300A', team: 'blue', icon: '●', count: 3, labelEn: 'Boost Vote', labelJa: '青に3票', priceLabel: '¥300 / $3' },
+    { code: '500A', team: 'blue', icon: '💣', count: 5, labelEn: 'Smash red', labelJa: '赤を5マス破壊', priceLabel: '¥500 / $5' },
     { code: 'B', team: 'red', icon: '●', count: 1, labelEn: 'Vote', labelJa: '赤に1票' },
     { code: 'BB', team: 'red', icon: '💣', count: 1, labelEn: 'Break blue', labelJa: '青を1マス破壊' },
-    { code: '300B', team: 'red', icon: '●', count: 3, labelEn: 'Boost Vote', labelJa: '赤に3票' },
-    { code: '500B', team: 'red', icon: '💣', count: 5, labelEn: 'Smash blue', labelJa: '青を5マス破壊' },
+    { code: '300B', team: 'red', icon: '●', count: 3, labelEn: 'Boost Vote', labelJa: '赤に3票', priceLabel: '¥300 / $3' },
+    { code: '500B', team: 'red', icon: '💣', count: 5, labelEn: 'Smash blue', labelJa: '青を5マス破壊', priceLabel: '¥500 / $5' },
   ],
 };
