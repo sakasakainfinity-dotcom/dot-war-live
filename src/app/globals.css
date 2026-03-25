@@ -637,3 +637,168 @@ body {
 .voice-status p {
   margin: 0;
 }
+
+.live-mode-stage {
+  grid-template-rows: auto 1fr auto auto;
+  gap: 0.55rem;
+}
+
+.live-head {
+  padding: 0.8rem 1rem 0.7rem;
+  text-align: center;
+}
+
+.live-head h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.7vw, 2.2rem);
+  font-weight: 900;
+}
+
+.live-status-main {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1rem, 2vw, 1.65rem);
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.live-status-sub {
+  margin: 0.2rem 0 0;
+  font-size: clamp(0.65rem, 1vw, 0.82rem);
+  color: #cbd5e1;
+  letter-spacing: 0.12em;
+}
+
+.live-content {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.78fr);
+  gap: 0.75rem;
+}
+
+.live-grid-wrap {
+  position: relative;
+  min-height: 0;
+  padding-right: 0.5rem;
+}
+
+.comment-side-panel {
+  padding: 0.5rem 0.65rem;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+.comment-scroll {
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  padding-right: 0.25rem;
+}
+
+.operation-guide {
+  justify-self: center;
+  padding: 0.25rem 0.8rem;
+  text-align: center;
+}
+
+.operation-guide p {
+  margin: 0.05rem 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.command-dock-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.admin-root {
+  min-height: 100vh;
+  padding: 1.2rem;
+  background: #020617;
+  color: #e2e8f0;
+  display: grid;
+  place-items: center;
+}
+
+.admin-card {
+  width: min(860px, 100%);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 1.1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-card h1 {
+  margin: 0;
+}
+
+.admin-help {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.admin-field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-field span {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-field input {
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.95);
+  color: #f8fafc;
+  padding: 0.5rem;
+}
+
+.admin-questions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.admin-actions button {
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: 700;
+  padding: 0.55rem 1.2rem;
+  cursor: pointer;
+}
+
+@media (max-width: 960px) {
+  .live-content {
+    grid-template-columns: 1fr;
+  }
+
+  .live-grid-wrap {
+    padding-right: 0;
+  }
+
+  .comment-side-panel {
+    max-height: 180px;
+  }
+
+  .admin-questions {
+    grid-template-columns: 1fr;
+  }
+
+  .command-dock-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
