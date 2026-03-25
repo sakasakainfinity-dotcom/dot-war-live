@@ -57,16 +57,18 @@ function resolveFrontlineShift(blueValue, redValue) {
   return Math.sign(diff) * Math.min(3, Math.ceil(Math.abs(diff) / 4));
 }
 
-function applyFrontlineShift(grid, shift) {
-  if (shift === 0) return grid;
+function buildFrontlineGrid(baseGrid, offset) {
+  const height = baseGrid.length;
+  const width = baseGrid[0]?.length ?? 0;
+  const centerColumn = Math.floor(width / 2);
+  const minOffset = 1 - centerColumn;
+  const maxOffset = width - 1 - centerColumn;
+  const safeOffset = Math.max(minOffset, Math.min(maxOffset, offset));
+  const blueWidth = centerColumn + safeOffset;
 
-  const width = grid[0]?.length ?? 0;
-  return grid.map((row) => {
-    const currentBlueWidth = row.findIndex((cell) => cell === 'red');
-    const safeBlueWidth = currentBlueWidth === -1 ? width : currentBlueWidth;
-    const nextBlueWidth = Math.max(1, Math.min(width - 1, safeBlueWidth + shift));
-    return row.map((_, colIndex) => (colIndex < nextBlueWidth ? 'blue' : 'red'));
-  });
+  return Array.from({ length: height }, () =>
+    Array.from({ length: width }, (_, colIndex) => (colIndex < blueWidth ? 'blue' : 'red')),
+  );
 }
 
 function buildFlight(id, text, commandCode, target, attack, isSuperChat) {
@@ -74,17 +76,19 @@ function buildFlight(id, text, commandCode, target, attack, isSuperChat) {
 }
 
 export function BattleLayout({ data = battleMockData }) {
-  const [grid, setGrid] = useState(data.grid);
+  const [frontlineOffset, setFrontlineOffset] = useState(0);
   const [blueGauge, setBlueGauge] = useState(0);
   const [redGauge, setRedGauge] = useState(0);
   const [superChat, setSuperChat] = useState(data.superChat);
-  const [commentLog, setCommentLog] = useState([]);
+  const [latestComment, setLatestComment] = useState(null);
   const [flyingComments, setFlyingComments] = useState([]);
   const [voiceNow, setVoiceNow] = useState('');
 
   const speechQueueRef = useRef([]);
   const speakingRef = useRef(false);
+  const frontlineTimerRef = useRef(null);
   const commands = useMemo(() => data.commandGuides.map((item) => item.code), [data.commandGuides]);
+  const grid = useMemo(() => buildFrontlineGrid(data.grid, frontlineOffset), [data.grid, frontlineOffset]);
 
   const enqueueSpeech = useCallback((text, priority = 'normal') => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
@@ -130,17 +134,14 @@ export function BattleLayout({ data = battleMockData }) {
       const effect = COMMAND_EFFECTS[commandCode];
       const entryId = `${Date.now()}-${Math.random()}`;
 
-      setCommentLog((prev) => [
-        {
-          id: entryId,
-          user,
-          text: displayText,
-          commandCode,
-          isSuperChat,
-          amount,
-        },
-        ...prev,
-      ].slice(0, 6));
+      setLatestComment({
+        id: entryId,
+        user,
+        text: displayText,
+        commandCode,
+        isSuperChat,
+        amount,
+      });
 
       if (!effect) return;
 
@@ -194,6 +195,9 @@ export function BattleLayout({ data = battleMockData }) {
 
   useEffect(() => {
     return () => {
+      if (frontlineTimerRef.current) {
+        clearTimeout(frontlineTimerRef.current);
+      }
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
@@ -201,13 +205,37 @@ export function BattleLayout({ data = battleMockData }) {
   }, []);
 
   const handleUpdateTick = useCallback(() => {
-    setGrid((prev) => applyFrontlineShift(prev, resolveFrontlineShift(blueGauge, redGauge)));
+    const shift = resolveFrontlineShift(blueGauge, redGauge);
+    if (frontlineTimerRef.current) {
+      clearTimeout(frontlineTimerRef.current);
+      frontlineTimerRef.current = null;
+    }
+
+    if (shift !== 0) {
+      const width = data.grid[0]?.length ?? 0;
+      const centerColumn = Math.floor(width / 2);
+      const minOffset = 1 - centerColumn;
+      const maxOffset = width - 1 - centerColumn;
+      const direction = Math.sign(shift);
+      const totalSteps = Math.abs(shift);
+
+      const animateStep = (stepCount = 0) => {
+        setFrontlineOffset((prev) => Math.max(minOffset, Math.min(maxOffset, prev + direction)));
+        if (stepCount + 1 >= totalSteps) {
+          frontlineTimerRef.current = null;
+          return;
+        }
+        frontlineTimerRef.current = setTimeout(() => animateStep(stepCount + 1), 120);
+      };
+
+      animateStep();
+    }
 
     if (HUD_CONFIG.gauge.resetPerRound) {
       setBlueGauge(0);
       setRedGauge(0);
     }
-  }, [blueGauge, redGauge]);
+  }, [blueGauge, data.grid, redGauge]);
 
   return (
     <main className="hud-root">
@@ -223,13 +251,18 @@ export function BattleLayout({ data = battleMockData }) {
         <section className="panel comment-log-panel">
           <p className="comment-log-title hud-main-text">LIVE COMMENTS</p>
           <div className="comment-log-list">
-            {commentLog.map((entry) => (
-              <p key={entry.id} className={`comment-line ${entry.isSuperChat ? 'comment-line-super' : ''}`}>
-                <strong>{entry.user}</strong>
-                {entry.amount ? <span className="comment-amount">{entry.amount}</span> : null}
-                <span>{entry.text}</span>
+            {latestComment ? (
+              <p className={`comment-line ${latestComment.isSuperChat ? 'comment-line-super' : ''}`}>
+                <strong>{latestComment.user}</strong>
+                {latestComment.amount ? <span className="comment-amount">{latestComment.amount}</span> : null}
+                <span>{latestComment.text}</span>
               </p>
-            ))}
+            ) : (
+              <p className="comment-line">
+                <strong>Live Chat</strong>
+                <span>Waiting for new action...</span>
+              </p>
+            )}
           </div>
         </section>
 
