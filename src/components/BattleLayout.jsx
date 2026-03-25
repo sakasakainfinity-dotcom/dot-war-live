@@ -51,34 +51,86 @@ function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-function resolveFrontlineShift(blueValue, redValue) {
-  const diff = blueValue - redValue;
-  if (Math.abs(diff) < 2) return 0;
-  return Math.sign(diff) * Math.min(3, Math.ceil(Math.abs(diff) / 4));
-}
-
-function buildFrontlineGrid(baseGrid, offset) {
-  const height = baseGrid.length;
-  const width = baseGrid[0]?.length ?? 0;
-  const centerColumn = Math.floor(width / 2);
-  const minOffset = 1 - centerColumn;
-  const maxOffset = width - 1 - centerColumn;
-  const safeOffset = Math.max(minOffset, Math.min(maxOffset, offset));
-  const blueWidth = centerColumn + safeOffset;
-
-  return Array.from({ length: height }, () =>
-    Array.from({ length: width }, (_, colIndex) => (colIndex < blueWidth ? 'blue' : 'red')),
+function byCenterRowDistance(height) {
+  const middle = Math.floor(height / 2);
+  return Array.from({ length: height }, (_, row) => row).sort(
+    (a, b) => Math.abs(a - middle) - Math.abs(b - middle),
   );
 }
 
+function buildCaptureOrder(height, width, isBluePush) {
+  const centerColumn = Math.floor(width / 2);
+  const rows = byCenterRowDistance(height);
+  const columns = isBluePush
+    ? Array.from({ length: width - centerColumn }, (_, idx) => centerColumn + idx)
+    : Array.from({ length: centerColumn }, (_, idx) => centerColumn - 1 - idx);
+
+  const order = [];
+  columns.forEach((col) => {
+    rows.forEach((row) => {
+      order.push({ row, col });
+    });
+  });
+  return order;
+}
+
+function buildFrontlineGrid(baseGrid, totalBalance) {
+  const height = baseGrid.length;
+  const width = baseGrid[0]?.length ?? 0;
+  const centerColumn = Math.floor(width / 2);
+  const grid = Array.from({ length: height }, () =>
+    Array.from({ length: width }, (_, colIndex) => (colIndex < centerColumn ? 'blue' : 'red')),
+  );
+  const isBluePushing = totalBalance > 0;
+  const captureOrder = buildCaptureOrder(height, width, isBluePushing);
+  captureOrder.slice(0, Math.abs(totalBalance)).forEach(({ row, col }) => {
+    grid[row][col] = isBluePushing ? 'blue' : 'red';
+  });
+
+  return grid;
+}
+
 function buildFlight(id, text, commandCode, target, attack, isSuperChat) {
-  return { id, text, commandCode, target, attack, isSuperChat };
+  return {
+    id,
+    text,
+    commandCode,
+    target,
+    attack,
+    isSuperChat,
+    startX: `${46 + Math.floor(Math.random() * 9)}%`,
+    startY: `${10 + Math.floor(Math.random() * 30)}%`,
+    endY: `${62 + Math.floor(Math.random() * 24)}%`,
+    scale: `${1.2 + Math.random() * 0.7}`,
+  };
+}
+
+function isPaidCommand(code) {
+  return code.startsWith('300') || code.startsWith('500');
+}
+
+function isEligiblePaidCommand(code, isSuperChat, amount) {
+  if (!isPaidCommand(code)) return true;
+  if (!isSuperChat) return false;
+  const normalized = `${amount}`.replace(/\s+/g, '');
+  if (code.startsWith('300')) {
+    return normalized === '¥300' || normalized === '$3';
+  }
+  return normalized === '¥500' || normalized === '$5';
+}
+
+function clampTotalBalance(value, width, height) {
+  const center = Math.floor(width / 2);
+  const maxBlue = (width - center) * height;
+  const maxRed = center * height;
+  return Math.max(-maxRed, Math.min(maxBlue, value));
 }
 
 export function BattleLayout({ data = battleMockData }) {
-  const [frontlineOffset, setFrontlineOffset] = useState(0);
   const [blueGauge, setBlueGauge] = useState(0);
   const [redGauge, setRedGauge] = useState(0);
+  const [totalBalance, setTotalBalance] = useState(0);
+  const [displayBalance, setDisplayBalance] = useState(0);
   const [superChat, setSuperChat] = useState(data.superChat);
   const [latestComment, setLatestComment] = useState(null);
   const [flyingComments, setFlyingComments] = useState([]);
@@ -86,9 +138,9 @@ export function BattleLayout({ data = battleMockData }) {
 
   const speechQueueRef = useRef([]);
   const speakingRef = useRef(false);
-  const frontlineTimerRef = useRef(null);
+  const balanceAnimationRef = useRef(null);
   const commands = useMemo(() => data.commandGuides.map((item) => item.code), [data.commandGuides]);
-  const grid = useMemo(() => buildFrontlineGrid(data.grid, frontlineOffset), [data.grid, frontlineOffset]);
+  const grid = useMemo(() => buildFrontlineGrid(data.grid, displayBalance), [data.grid, displayBalance]);
 
   const enqueueSpeech = useCallback((text, priority = 'normal') => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
@@ -144,18 +196,20 @@ export function BattleLayout({ data = battleMockData }) {
       });
 
       if (!effect) return;
+      if (!isEligiblePaidCommand(commandCode, isSuperChat, amount)) return;
 
       setBlueGauge((prev) => clampGauge(prev + effect.blueDelta));
       setRedGauge((prev) => clampGauge(prev + effect.redDelta));
 
-      setFlyingComments((prev) => [
-        ...prev,
-        buildFlight(entryId, displayText, commandCode, effect.target, effect.attack, isSuperChat),
-      ]);
+      const burstCount = isSuperChat ? 6 : effect.attack ? 5 : 3;
+      const burst = Array.from({ length: burstCount }, (_, idx) =>
+        buildFlight(`${entryId}-${idx}`, displayText, commandCode, effect.target, effect.attack, isSuperChat),
+      );
+      setFlyingComments((prev) => [...prev, ...burst]);
 
       setTimeout(() => {
-        setFlyingComments((prev) => prev.filter((item) => item.id !== entryId));
-      }, 700);
+        setFlyingComments((prev) => prev.filter((item) => !item.id.startsWith(entryId)));
+      }, 1200);
 
       if (isSuperChat) {
         setSuperChat({ user, amount, message: displayText });
@@ -170,13 +224,14 @@ export function BattleLayout({ data = battleMockData }) {
       const commandCode = pick(commands);
       const commandMeta = data.commandGuides.find((item) => item.code === commandCode);
       const isSuperChat = Math.random() < 0.16;
+      const superChatAmounts = ['¥300', '¥500', '$3', '$5', '¥200', '¥1,000'];
 
       applyCommand({
         commandCode,
         displayText: `${commandCode} ${pick(CHAT_LINES)} ${commandMeta?.labelJa ?? ''}`,
         isSuperChat,
         user: isSuperChat ? pick(['Kenji', 'Mika', 'Aoi', 'Sora']) : 'Live Chat',
-        amount: isSuperChat ? pick(['¥200', '¥500', '¥1,000']) : '',
+        amount: isSuperChat ? pick(superChatAmounts) : '',
       });
     }, 2200);
 
@@ -195,8 +250,8 @@ export function BattleLayout({ data = battleMockData }) {
 
   useEffect(() => {
     return () => {
-      if (frontlineTimerRef.current) {
-        clearTimeout(frontlineTimerRef.current);
+      if (balanceAnimationRef.current) {
+        clearInterval(balanceAnimationRef.current);
       }
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
@@ -205,37 +260,38 @@ export function BattleLayout({ data = battleMockData }) {
   }, []);
 
   const handleUpdateTick = useCallback(() => {
-    const shift = resolveFrontlineShift(blueGauge, redGauge);
-    if (frontlineTimerRef.current) {
-      clearTimeout(frontlineTimerRef.current);
-      frontlineTimerRef.current = null;
+    const width = data.grid[0]?.length ?? 0;
+    const height = data.grid.length;
+    const periodDelta = blueGauge - redGauge;
+    const nextTotal = clampTotalBalance(totalBalance + periodDelta, width, height);
+
+    if (balanceAnimationRef.current) {
+      clearInterval(balanceAnimationRef.current);
     }
 
-    if (shift !== 0) {
-      const width = data.grid[0]?.length ?? 0;
-      const centerColumn = Math.floor(width / 2);
-      const minOffset = 1 - centerColumn;
-      const maxOffset = width - 1 - centerColumn;
-      const direction = Math.sign(shift);
-      const totalSteps = Math.abs(shift);
-
-      const animateStep = (stepCount = 0) => {
-        setFrontlineOffset((prev) => Math.max(minOffset, Math.min(maxOffset, prev + direction)));
-        if (stepCount + 1 >= totalSteps) {
-          frontlineTimerRef.current = null;
-          return;
-        }
-        frontlineTimerRef.current = setTimeout(() => animateStep(stepCount + 1), 120);
-      };
-
-      animateStep();
+    const direction = Math.sign(nextTotal - displayBalance);
+    if (direction === 0) {
+      setTotalBalance(nextTotal);
+    } else {
+      balanceAnimationRef.current = setInterval(() => {
+        setDisplayBalance((prev) => {
+          const next = prev + direction;
+          if ((direction > 0 && next >= nextTotal) || (direction < 0 && next <= nextTotal)) {
+            clearInterval(balanceAnimationRef.current);
+            balanceAnimationRef.current = null;
+            return nextTotal;
+          }
+          return next;
+        });
+      }, 70);
+      setTotalBalance(nextTotal);
     }
 
     if (HUD_CONFIG.gauge.resetPerRound) {
       setBlueGauge(0);
       setRedGauge(0);
     }
-  }, [blueGauge, data.grid, redGauge]);
+  }, [blueGauge, data.grid, displayBalance, redGauge, totalBalance]);
 
   return (
     <main className="hud-root">
@@ -282,6 +338,7 @@ export function BattleLayout({ data = battleMockData }) {
                 <span
                   key={flight.id}
                   className={`flight-chip flight-to-${flight.target} ${flight.attack ? 'flight-attack' : ''} ${flight.isSuperChat ? 'flight-super' : ''}`}
+                  style={{ '--flight-start-x': flight.startX, '--flight-start-y': flight.startY, '--flight-end-y': flight.endY, '--flight-scale': flight.scale }}
                 >
                   {flight.commandCode}
                 </span>
