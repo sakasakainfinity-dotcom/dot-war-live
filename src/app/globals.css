@@ -487,3 +487,106 @@ body {
     gap: 0.3rem;
   }
 }
+
+.comment-log-panel {
+  padding: 0.28rem 0.6rem;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.comment-log-title {
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: #cbd5e1;
+}
+
+.comment-log-list {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.comment-line {
+  margin: 0;
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  font-size: 0.6rem;
+  color: #e2e8f0;
+}
+
+.comment-line strong {
+  color: #93c5fd;
+}
+
+.comment-line-super {
+  color: #fde68a;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.35);
+}
+
+.comment-amount {
+  color: #fb923c;
+  font-weight: 800;
+}
+
+.hud-grid-wrap {
+  position: relative;
+}
+
+.flight-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.flight-chip {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  transform: translate(-50%, -50%);
+  font-size: 0.62rem;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-weight: 900;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  border-radius: 999px;
+  padding: 0.08rem 0.34rem;
+  background: rgba(15, 23, 42, 0.85);
+  animation: fly-to-blue 680ms ease-out forwards;
+}
+
+.flight-to-red {
+  animation-name: fly-to-red;
+}
+
+.flight-attack {
+  border-color: rgba(248, 113, 113, 0.8);
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.35);
+}
+
+.flight-super {
+  color: #fde68a;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+}
+
+@keyframes fly-to-blue {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-360%, 90%) scale(0.65); }
+}
+
+@keyframes fly-to-red {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(280%, 90%) scale(0.65); }
+}
+
+.voice-status {
+  justify-self: center;
+  width: min(100%, 540px);
+  padding: 0.2rem 0.5rem;
+  text-align: center;
+}
+
+.voice-status p {
+  margin: 0;
+}

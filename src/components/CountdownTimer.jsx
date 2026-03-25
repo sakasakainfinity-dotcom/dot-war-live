@@ -2,9 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-export function CountdownTimer({ initialSeconds, intervalSeconds = 300, onUpdateTick }) {
-  const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds);
+export function CountdownTimer({ intervalSeconds = 180, onUpdateTick }) {
+  const [remainingSeconds, setRemainingSeconds] = useState(intervalSeconds);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    setRemainingSeconds(intervalSeconds);
+  }, [intervalSeconds]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -35,8 +39,8 @@ export function CountdownTimer({ initialSeconds, intervalSeconds = 300, onUpdate
       <p className="timer-value">{mmss}</p>
       {isUpdating && (
         <p className="timer-updating">
-          <span className="hud-main-text">UPDATING</span>
-          <span className="hud-sub-text">反映中</span>
+          <span className="hud-main-text">FRONTLINE MOVING</span>
+          <span className="hud-sub-text">前線反映中</span>
         </p>
       )}
     </section>
