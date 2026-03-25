@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createDefaultLiveSettings, normalizeLiveSettings, readLiveSettings, writeLiveSettings } from '../../lib/liveSettings';
 
@@ -27,10 +28,10 @@ export default function AdminPage() {
     setForm(readLiveSettings());
   }, []);
 
-  const updateQuestion = (index, value) => {
+  const updateQuestion = (index, key, value) => {
     setForm((prev) => {
       const next = [...prev.questions];
-      next[index] = value;
+      next[index] = { ...next[index], [key]: value };
       return { ...prev, questions: next };
     });
   };
@@ -45,16 +46,39 @@ export default function AdminPage() {
   return (
     <main className="admin-root">
       <section className="admin-card">
-        <h1>Dot War Live 管理画面</h1>
-        <p className="admin-help">配信設定を保存すると、配信画面（/）に即時反映されます。</p>
+        <h1>Dot War Live Admin</h1>
+        <p className="admin-help">Save to push live UI updates instantly.</p>
 
         <label className="admin-field">
-          <span>大タイトル</span>
-          <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
+          <span>Title EN</span>
+          <input value={form.titleEn} onChange={(e) => setForm((prev) => ({ ...prev, titleEn: e.target.value }))} />
+        </label>
+        <label className="admin-field">
+          <span>タイトル JP</span>
+          <input value={form.titleJa} onChange={(e) => setForm((prev) => ({ ...prev, titleJa: e.target.value }))} />
         </label>
 
+        <div className="admin-questions">
+          <label className="admin-field">
+            <span>Blue Team EN</span>
+            <input value={form.blueTeamEn} onChange={(e) => setForm((prev) => ({ ...prev, blueTeamEn: e.target.value }))} />
+          </label>
+          <label className="admin-field">
+            <span>Blue Team JP</span>
+            <input value={form.blueTeamJa} onChange={(e) => setForm((prev) => ({ ...prev, blueTeamJa: e.target.value }))} />
+          </label>
+          <label className="admin-field">
+            <span>Red Team EN</span>
+            <input value={form.redTeamEn} onChange={(e) => setForm((prev) => ({ ...prev, redTeamEn: e.target.value }))} />
+          </label>
+          <label className="admin-field">
+            <span>Red Team JP</span>
+            <input value={form.redTeamJa} onChange={(e) => setForm((prev) => ({ ...prev, redTeamJa: e.target.value }))} />
+          </label>
+        </div>
+
         <label className="admin-field">
-          <span>開始予定日時</span>
+          <span>Start At</span>
           <input
             type="datetime-local"
             value={toLocalInputValue(form.startAt)}
@@ -63,7 +87,7 @@ export default function AdminPage() {
         </label>
 
         <label className="admin-field">
-          <span>1ピリオドの秒数</span>
+          <span>Period Seconds</span>
           <input
             type="number"
             min="10"
@@ -75,18 +99,25 @@ export default function AdminPage() {
 
         <div className="admin-questions">
           {form.questions.map((question, index) => (
-            <label className="admin-field" key={`q-${index}`}>
-              <span>{`質問${index + 1}`}</span>
-              <input value={question} onChange={(e) => updateQuestion(index, e.target.value)} />
-            </label>
+            <div className="admin-question-pair" key={`q-${index}`}>
+              <label className="admin-field">
+                <span>{`Q${index + 1} EN`}</span>
+                <input value={question.en} onChange={(e) => updateQuestion(index, 'en', e.target.value)} />
+              </label>
+              <label className="admin-field">
+                <span>{`Q${index + 1} JP`}</span>
+                <input value={question.ja} onChange={(e) => updateQuestion(index, 'ja', e.target.value)} />
+              </label>
+            </div>
           ))}
         </div>
 
         <div className="admin-actions">
           <button type="button" onClick={handleSave}>
-            保存
+            Save
           </button>
-          {savedAt ? <p>{`保存済み: ${savedAt}`}</p> : null}
+          {savedAt ? <p>{`Saved: ${savedAt}`}</p> : null}
+          <Link href="/" className="stealth-link">game</Link>
         </div>
       </section>
     </main>

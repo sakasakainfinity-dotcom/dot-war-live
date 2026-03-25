@@ -802,3 +802,148 @@ body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Live UI refresh */
+.live-head {
+  padding: 0.6rem 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-rows: auto auto;
+  gap: 0.45rem 0.6rem;
+  align-items: start;
+  text-align: left;
+  position: relative;
+}
+
+.live-title-wrap { min-width: 0; }
+
+.live-title-en {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.live-title-ja {
+  margin: 0.1rem 0 0;
+  font-size: clamp(0.72rem, 1.2vw, 0.92rem);
+  color: #bfdbfe;
+  opacity: 0.9;
+}
+
+.question-block { min-width: 0; }
+
+.live-status-main {
+  margin: 0.2rem 0 0;
+  font-size: clamp(1rem, 1.8vw, 1.5rem);
+  letter-spacing: 0.03em;
+}
+
+.live-status-ja {
+  margin: 0.08rem 0 0;
+  font-size: clamp(0.68rem, 1vw, 0.85rem);
+  color: #bfdbfe;
+}
+
+.live-status-sub {
+  margin: 0.16rem 0 0;
+  font-size: clamp(0.66rem, 0.95vw, 0.84rem);
+  letter-spacing: 0.08em;
+  color: #e2e8f0;
+}
+
+.ranking-panel {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  padding: 0.4rem;
+}
+
+.ranking-title { font-size: 0.72rem; }
+.ranking-title-ja { font-size: 0.58rem; }
+.ranking-row { font-size: 0.68rem; }
+
+.live-content { grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.65fr); }
+
+.live-grid-wrap { padding-right: 0; }
+
+.team-side-label {
+  position: absolute;
+  top: 0.45rem;
+  z-index: 3;
+  font-weight: 900;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+}
+
+.team-side-left { left: 0.75rem; color: #7dd3fc; }
+.team-side-right { right: 0.75rem; color: #fdba74; }
+
+.comment-side-panel { grid-template-rows: auto auto 1fr; }
+
+.operation-guide p:first-child { font-size: 0.74rem; }
+.operation-guide p:last-child { font-size: 0.64rem; color: #bfdbfe; }
+
+.command-dock-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.command-mini-card {
+  min-height: 56px;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
+  gap: 0.15rem;
+  padding: 0.36rem 0.48rem;
+}
+
+.command-label-en {
+  font-size: 0.74rem;
+  line-height: 1.1;
+}
+
+.command-label-ja {
+  grid-column: auto;
+  font-size: 0.6rem;
+}
+
+.stealth-link {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.35rem;
+  font-size: 0.54rem;
+  opacity: 0.28;
+  color: #94a3b8;
+  text-decoration: none;
+}
+
+.stealth-link:hover { opacity: 0.55; }
+
+.admin-question-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+@media (max-width: 960px) {
+  .live-head {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .ranking-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .command-dock-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-question-pair {
+    grid-template-columns: 1fr;
+  }
+}
