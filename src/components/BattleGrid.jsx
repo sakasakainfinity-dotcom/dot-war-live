@@ -7,7 +7,10 @@ export function BattleGrid({ grid }) {
         <div className="battle-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
           {grid.flatMap((row, rowIndex) =>
             row.map((cell, colIndex) => (
-              <div key={`${rowIndex}-${colIndex}`} className={`grid-cell ${cell === 'blue' ? 'grid-blue' : 'grid-red'}`} />
+              <div
+                key={`${rowIndex}-${colIndex}-${cell}`}
+                className={`grid-cell grid-flip ${cell === 'blue' ? 'grid-blue' : 'grid-red'}`}
+              />
             )),
           )}
         </div>
