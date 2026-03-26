@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { battleMockData } from '../lib/mockData';
-import { readLiveSettings } from '../lib/liveSettings';
+import { getActivePeriod, getNextPeriod, readLiveSettings } from '../lib/liveSettings';
+import { evaluateCommentForReply, prefilterComment, trimForVoice } from '../lib/commentReplyEngine';
 import { BattleGrid } from './BattleGrid';
 import { CommandBar } from './CommandGuideDock';
-import { TopRankingPanel } from './TopRankingPanel';
 
 const COMMAND_EFFECTS = {
   B: { blueDelta: 1, redDelta: 0 },
@@ -17,26 +17,28 @@ const COMMAND_EFFECTS = {
   '5R': { blueDelta: -3, redDelta: 0 },
 };
 
-const CHAT_LINES = ['Push now!', 'Hold line!', 'Blue go!', 'Red go!', 'Nice hit!'];
-const USERS = ['Kenji', 'Mika', 'Aoi', 'Sora', 'Riku', 'Moe', 'Yuto', 'Nana'];
+const CHAT_LINES = [
+  '中央押したい！',
+  '守備ライン維持しよう',
+  '爆弾ここで使う？',
+  '今逆転あるぞ',
+  'ナイス連携！',
+  'R go go',
+  'B push center',
+  'スパチャで流れ変える',
+];
+const USERS = ['Kenji', 'Mika', 'Aoi', 'Sora', 'Riku', 'Moe', 'Yuto', 'Nana', 'Hina', 'Kota'];
 
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-function byCenterRowDistance(height) {
-  const middle = Math.floor(height / 2);
-  return Array.from({ length: height }, (_, row) => row).sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle));
-}
-
-function buildCaptureOrder(height, width, isBluePush) {
-  const centerColumn = Math.floor(width / 2);
-  const rows = byCenterRowDistance(height);
-  const columns = isBluePush
-    ? Array.from({ length: width - centerColumn }, (_, idx) => centerColumn + idx)
-    : Array.from({ length: centerColumn }, (_, idx) => centerColumn - 1 - idx);
-
-  return columns.flatMap((col) => rows.map((row) => ({ row, col })));
+function formatCountdown(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const hh = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+  const ss = String(totalSec % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
 }
 
 function buildFrontlineGrid(baseGrid, totalBalance) {
@@ -46,12 +48,14 @@ function buildFrontlineGrid(baseGrid, totalBalance) {
   const grid = Array.from({ length: height }, () =>
     Array.from({ length: width }, (_, colIndex) => (colIndex < centerColumn ? 'blue' : 'red')),
   );
-  const isBluePushing = totalBalance > 0;
-  const captureOrder = buildCaptureOrder(height, width, isBluePushing);
-  captureOrder.slice(0, Math.abs(totalBalance)).forEach(({ row, col }) => {
-    grid[row][col] = isBluePushing ? 'blue' : 'red';
-  });
-
+  const steps = Math.abs(totalBalance);
+  const isBluePush = totalBalance > 0;
+  for (let i = 0; i < steps; i += 1) {
+    const row = i % height;
+    const wave = Math.floor(i / height);
+    const col = isBluePush ? centerColumn + wave : centerColumn - 1 - wave;
+    if (col >= 0 && col < width) grid[row][col] = isBluePush ? 'blue' : 'red';
+  }
   return grid;
 }
 
@@ -62,37 +66,13 @@ function clampTotalBalance(value, width, height) {
   return Math.max(-maxRed, Math.min(maxBlue, value));
 }
 
-function getPhase(settings, now = Date.now()) {
-  const startAt = new Date(settings.startAt).getTime();
-  const preLiveStart = startAt - 60 * 60 * 1000;
-  const liveEnd = startAt + settings.periodDurationSec * 6 * 1000;
-
-  if (now < preLiveStart) return 'idle';
-  if (now < startAt) return 'pre_live';
-  if (now < liveEnd) return 'live';
-  return 'ended';
-}
-
-function formatCountdown(ms) {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-  const ss = String(totalSec % 60).padStart(2, '0');
-  return `${mm}:${ss}`;
-}
-
-function commandPoint(commandCode) {
-  if (commandCode.startsWith('5')) return 5;
-  if (commandCode.startsWith('3')) return 3;
-  return 1;
-}
-
 const COMMANDS = [
-  { code: 'B', team: 'blue', labelEn: '"B" = BLUE VOTE', labelJa: '青に投票' },
-  { code: '3B', team: 'blue', labelEn: '"3B" ¥300 / $3 = +BLUE ×3', labelJa: '3マス追加' },
-  { code: '5B', team: 'blue', labelEn: '"5B" ¥500 / $5 = RED💣SMASH3', labelJa: '3マス破壊' },
-  { code: 'R', team: 'red', labelEn: '"R" = RED VOTE', labelJa: '赤に投票' },
-  { code: '3R', team: 'red', labelEn: '"3R" ¥300 / $3 = +RED ×3', labelJa: '3マス追加' },
-  { code: '5R', team: 'red', labelEn: '"5R" ¥500 / $5 = BLUE💣SMASH3', labelJa: '3マス破壊' },
+  { code: 'B', labelEn: '"B" = BLUE VOTE', labelJa: '青に投票' },
+  { code: '3B', labelEn: '"3B" ¥300 / $3 = +BLUE ×3', labelJa: '3マス追加' },
+  { code: '5B', labelEn: '"5B" ¥500 / $5 = RED💣SMASH3', labelJa: '3マス破壊' },
+  { code: 'R', labelEn: '"R" = RED VOTE', labelJa: '赤に投票' },
+  { code: '3R', labelEn: '"3R" ¥300 / $3 = +RED ×3', labelJa: '3マス追加' },
+  { code: '5R', labelEn: '"5R" ¥500 / $5 = BLUE💣SMASH3', labelJa: '3マス破壊' },
 ];
 
 export function BattleLayout({ data = battleMockData }) {
@@ -100,8 +80,15 @@ export function BattleLayout({ data = battleMockData }) {
   const [nowMs, setNowMs] = useState(Date.now());
   const [totalBalance, setTotalBalance] = useState(0);
   const [comments, setComments] = useState([]);
-  const [flyingComments, setFlyingComments] = useState([]);
+  const [aiReplies, setAiReplies] = useState([]);
+  const [paidComments, setPaidComments] = useState([]);
+  const [voiceLine, setVoiceLine] = useState('');
+  const [autoPosts, setAutoPosts] = useState([]);
   const voteCooldownRef = useRef(new Map());
+  const recentUserMapRef = useRef(new Map());
+  const recentTextMapRef = useRef(new Map());
+  const replyTimesRef = useRef([]);
+  const aiStateRef = useRef({ lastPickedUser: '', lastPickedAt: 0, lastVoiceAt: 0 });
 
   useEffect(() => {
     const tick = setInterval(() => setNowMs(Date.now()), 1000);
@@ -118,23 +105,77 @@ export function BattleLayout({ data = battleMockData }) {
     };
   }, []);
 
+  const activePeriod = getActivePeriod(settings, nowMs);
+  const nextPeriod = getNextPeriod(settings, nowMs);
+
+  const processAiReply = useCallback(
+    (entry) => {
+      if (!settings.aiReplyEnabled || !activePeriod) return;
+      const rule = prefilterComment(entry, settings.replyConfig, {
+        recentUserMap: recentUserMapRef.current,
+        recentTextMap: recentTextMapRef.current,
+        lastPickedUser: aiStateRef.current.lastPickedUser,
+        lastPickedAt: aiStateRef.current.lastPickedAt,
+      });
+      if (!rule.pass) return;
+
+      const inMinute = Date.now() - 60_000;
+      replyTimesRef.current = replyTimesRef.current.filter((time) => time > inMinute);
+      if (replyTimesRef.current.length >= settings.replyConfig.frequencyLimitPerMinute) return;
+
+      const result = evaluateCommentForReply(
+        entry,
+        { ...settings.replyConfig, mode: activePeriod.aiCommentMode || settings.replyConfig.mode },
+        { voiceReplyEnabled: settings.voiceReplyEnabled && settings.voiceConfig.enabled && activePeriod.voiceReplyEnabled },
+        { lastVoiceAt: aiStateRef.current.lastVoiceAt },
+      );
+      if (!result.picked) return;
+
+      replyTimesRef.current.push(Date.now());
+      aiStateRef.current.lastPickedUser = entry.user.id;
+      aiStateRef.current.lastPickedAt = Date.now();
+
+      const reply = {
+        id: `${entry.id}-reply`,
+        to: entry.user.name,
+        text: result.replyText,
+        category: result.category,
+        priority: result.priority,
+        spoken: result.spoken,
+        createdAt: Date.now(),
+      };
+
+      setAiReplies((prev) => [reply, ...prev].slice(0, 20));
+
+      if (reply.spoken) {
+        aiStateRef.current.lastVoiceAt = Date.now();
+        setVoiceLine(trimForVoice(reply.text, settings.voiceConfig.summarizeLongText ? 52 : 80));
+      }
+    },
+    [activePeriod, settings],
+  );
+
   const applyCommand = useCallback(
     ({ commandCode, user, text, amount = '' }) => {
       const effect = COMMAND_EFFECTS[commandCode];
-      if (!effect) return;
+      if (!effect || !activePeriod) return;
       const isSuperChat = commandCode.startsWith('3') || commandCode.startsWith('5');
       const userKey = user.id || `${user.platform}:${user.name}`;
       const lastVoteAt = voteCooldownRef.current.get(userKey) ?? 0;
-      if (!isSuperChat && Date.now() - lastVoteAt < 30_000) return;
+      if (!isSuperChat && Date.now() - lastVoteAt < 15_000) return;
       if (!isSuperChat) voteCooldownRef.current.set(userKey, Date.now());
+
+      recentUserMapRef.current.set(userKey, Date.now());
+      recentTextMapRef.current.set(text.toLowerCase(), Date.now());
 
       const width = data.grid[0]?.length ?? 0;
       const height = data.grid.length;
-      setTotalBalance((prev) => clampTotalBalance(prev + effect.blueDelta - effect.redDelta, width, height));
+      const periodBoost = Number(activePeriod.bonusValue ?? 1);
+      setTotalBalance((prev) => clampTotalBalance(prev + (effect.blueDelta - effect.redDelta) * periodBoost, width, height));
 
       const entry = {
         id: `${Date.now()}-${Math.random()}`,
-        user: user.name,
+        user,
         text,
         amount,
         commandCode,
@@ -142,11 +183,14 @@ export function BattleLayout({ data = battleMockData }) {
         createdAt: Date.now(),
       };
 
-      setComments((prev) => [entry, ...prev].slice(0, 80));
-      setFlyingComments((prev) => [...prev, entry]);
-      setTimeout(() => setFlyingComments((prev) => prev.filter((item) => item.id !== entry.id)), isSuperChat ? 2000 : 1200);
+      setComments((prev) => [entry, ...prev].slice(0, 120));
+      processAiReply(entry);
+
+      if (isSuperChat) {
+        setPaidComments((prev) => [entry, ...prev].slice(0, 5));
+      }
     },
-    [data.grid],
+    [activePeriod, data.grid, processAiReply],
   );
 
   useEffect(() => {
@@ -160,108 +204,111 @@ export function BattleLayout({ data = battleMockData }) {
         text: `${command.code} ${pick(CHAT_LINES)}`,
         amount: superAmount,
       });
-    }, 1800);
+    }, 1700);
 
     return () => clearInterval(ticker);
   }, [applyCommand]);
 
-  const phase = getPhase(settings, nowMs);
-  const startAtMs = new Date(settings.startAt).getTime();
-  const elapsedLiveSec = Math.max(0, Math.floor((nowMs - startAtMs) / 1000));
-  const periodIndex = Math.min(5, Math.floor(elapsedLiveSec / settings.periodDurationSec));
-  const currentQuestion = settings.questions[periodIndex] ?? settings.questions[0];
-  const periodRemainingSec = Math.max(0, settings.periodDurationSec - (elapsedLiveSec % settings.periodDurationSec));
-  const periodTime = formatCountdown(periodRemainingSec * 1000);
+  useEffect(() => {
+    if (!settings.autoNarrationEnabled || !activePeriod) return;
+    const intervalMs = Math.max(15_000, 60_000 - activePeriod.narrationLevel * 8_000);
+    const narrator = setInterval(() => {
+      const side = totalBalance >= 0 ? 'BLUE' : 'RED';
+      const message = `[AUTO] ${activePeriod.name}: ${side}優勢 / bonus x${activePeriod.bonusValue}`;
+      setAutoPosts((prev) => [{ id: `${Date.now()}`, target: 'feed', message, createdAt: Date.now() }, ...prev].slice(0, 10));
+    }, intervalMs);
 
-  const statusEn =
-    phase === 'pre_live'
-      ? `STARTS IN ${formatCountdown(startAtMs - nowMs)}`
-      : phase === 'live'
-        ? `PERIOD ${periodIndex + 1} / 6 • ENDS IN ${periodTime}`
-        : phase === 'ended'
-          ? 'FINAL PERIOD ENDED'
-          : 'WAITING FOR LIVE';
+    return () => clearInterval(narrator);
+  }, [activePeriod, settings.autoNarrationEnabled, totalBalance]);
 
-  const statusJa = phase === 'live' ? `残り ${periodTime}` : phase === 'pre_live' ? '開始まで' : '待機中';
+  useEffect(() => {
+    if (!nextPeriod) return;
+    const remain = new Date(nextPeriod.startAt).getTime() - nowMs;
+    if (remain < 30_000 && remain > 28_000) {
+      const eventMessage = `次のボーナス: ${nextPeriod.name} まもなく開始`; 
+      setAutoPosts((prev) => [{ id: `${Date.now()}-next`, target: settings.autoPostXEnabled ? 'X' : 'feed', message: eventMessage, createdAt: Date.now() }, ...prev].slice(0, 10));
+    }
+  }, [nextPeriod, nowMs, settings.autoPostXEnabled]);
 
-  const sortedComments = [...comments].sort((a, b) => {
-    if (a.isSuperChat !== b.isSuperChat) return a.isSuperChat ? -1 : 1;
-    return b.createdAt - a.createdAt;
-  });
+  const streamStart = new Date(settings.startAt).getTime();
+  const streamEnd = new Date(settings.endAt).getTime();
+  const phase = nowMs < streamStart ? 'pre_live' : nowMs >= streamEnd ? 'ended' : 'live';
+  const grid = useMemo(() => buildFrontlineGrid(data.grid, Math.floor(totalBalance)), [data.grid, totalBalance]);
 
-  const ranking = Object.entries(
-    comments.reduce((acc, c) => {
-      acc[c.user] = (acc[c.user] ?? 0) + commandPoint(c.commandCode);
-      return acc;
-    }, {}),
-  )
-    .map(([name, point]) => ({ name, point }))
-    .sort((a, b) => b.point - a.point)
-    .slice(0, 5)
-    .map((entry, index) => ({ rank: index + 1, ...entry }));
-
-  const grid = useMemo(() => buildFrontlineGrid(data.grid, totalBalance), [data.grid, totalBalance]);
+  const nextCountdown = nextPeriod ? formatCountdown(new Date(nextPeriod.startAt).getTime() - nowMs) : '00:00:00';
+  const currentRule = activePeriod ? `${activePeriod.bonusType} ×${activePeriod.bonusValue}` : 'standby';
 
   return (
     <main className="hud-root">
       <div className="hud-stage live-mode-stage">
         <header className="live-head panel">
           <div className="live-title-wrap">
-            <p className="live-title-en">{settings.titleEn}</p>
-            <p className="live-title-ja">{settings.titleJa}</p>
+            <p className="live-title-en">{settings.title}</p>
+            <p className="live-title-ja">{settings.theme}</p>
+            <p className="live-status-sub">{phase === 'live' ? '24H LIVE RUNNING' : phase === 'pre_live' ? 'STARTING SOON' : '24H LIVE ENDED'}</p>
           </div>
-          <TopRankingPanel ranking={ranking} />
+
           <div className="question-block">
-            <p className="live-status-main">{currentQuestion.en}</p>
-            <p className="live-status-ja">{currentQuestion.ja}</p>
-            <p className="live-status-sub">{statusEn}</p>
-            <p className="live-status-ja">{statusJa}</p>
+            <p className="live-status-main">NOW: {activePeriod?.name ?? '待機中'}</p>
+            <p className="live-status-ja">NEXT BONUS IN {nextCountdown}</p>
+            <p className="live-status-ja">現在ルール: {currentRule}</p>
+            <p className="live-status-ja">コメントで参加: B / R / 3B / 3R / 5B / 5R</p>
           </div>
           <Link href="/admin" className="stealth-link">admin</Link>
         </header>
 
         <section className="live-content">
-          <div className="live-grid-wrap">
-            <div className="team-side-label team-side-left">{settings.blueTeamEn}</div>
-            <div className="team-side-label team-side-right">{settings.redTeamEn}</div>
+          <div className="live-grid-wrap panel">
+            <div className="team-side-label team-side-left">BLUE</div>
+            <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
-            <div className="flight-overlay" aria-hidden>
-              {flyingComments.map((flight) => (
-                <span
-                  key={flight.id}
-                  className={`flight-chip ${flight.commandCode.includes('R') ? 'flight-to-red' : ''} ${flight.commandCode.includes('5') ? 'flight-attack' : ''} ${flight.isSuperChat ? 'flight-super' : ''}`}
-                >
-                  {flight.commandCode}
-                </span>
-              ))}
-            </div>
+            <div className="overlay-note">{activePeriod?.overlayText}</div>
           </div>
 
           <aside className="panel comment-side-panel">
-            <p className="comment-log-title hud-main-text">LIVE COMMENTS</p>
-            <p className="hud-sub-text">コメント</p>
+            <p className="comment-log-title hud-main-text">AI REPLY LOG</p>
+            <p className="hud-sub-text">broad / normal / strict 切替対応</p>
             <div className="comment-scroll">
-              {sortedComments.length === 0 ? (
-                <p className="comment-line">
-                  <strong>System</strong>
-                  <span>Waiting comments...</span>
+              {aiReplies.map((reply) => (
+                <p key={reply.id} className="comment-line comment-line-super">
+                  <strong>{reply.to}</strong>
+                  <span className="comment-amount">{reply.category}</span>
+                  <span>{reply.text}</span>
                 </p>
-              ) : (
-                sortedComments.map((comment) => (
-                  <p key={comment.id} className={`comment-line ${comment.isSuperChat ? 'comment-line-super' : ''}`}>
-                    <strong>{comment.user}</strong>
-                    {comment.amount ? <span className="comment-amount">{comment.amount}</span> : null}
-                    <span>{comment.text}</span>
-                  </p>
-                ))
-              )}
+              ))}
             </div>
           </aside>
         </section>
 
         <section className="panel operation-guide">
-          <p>Type "" command in comment to vote.</p>
-          <p>「」の文字をコメントすると投票できます。</p>
+          <p>NOW PERIOD / NEXT BONUS / RULE を常時表示中</p>
+          <p>AI返信: {settings.aiReplyEnabled ? 'ON' : 'OFF'} / 音声: {settings.voiceReplyEnabled ? 'ON' : 'OFF'} {voiceLine ? ` / VOICE: ${voiceLine}` : ''}</p>
+        </section>
+
+        <section className="panel paid-fixed-panel">
+          <p className="hud-main-text">PAID COMMENTS (Fixed latest 5)</p>
+          <div className="paid-fixed-list">
+            {paidComments.length === 0 ? <p className="hud-sub-text">まだスパチャはありません</p> : null}
+            {paidComments.map((comment) => (
+              <p key={comment.id} className="comment-line comment-line-super">
+                <strong>{comment.user.name}</strong>
+                <span className="comment-amount">{comment.amount}</span>
+                <span>{comment.text}</span>
+              </p>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel auto-post-panel">
+          <p className="hud-main-text">AUTO NARRATION / SNS QUEUE</p>
+          <div className="comment-scroll">
+            {autoPosts.map((post) => (
+              <p key={post.id} className="comment-line">
+                <strong>{post.target}</strong>
+                <span>{post.message}</span>
+              </p>
+            ))}
+          </div>
         </section>
 
         <CommandBar commands={COMMANDS} />
