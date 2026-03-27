@@ -222,7 +222,6 @@ export function BattleLayout({ data = battleMockData }) {
 
           <section className="battle-main panel">
             <div className="period-badge">PERIOD {periodNumber} <span>| 48</span> <em>{periodRemain}</em></div>
-            <p className="period-desc">{activePeriod?.description || activePeriod?.overlayText || '6 patterns x 8 cycles'}</p>
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
@@ -243,41 +242,42 @@ export function BattleLayout({ data = battleMockData }) {
           </aside>
         </section>
 
-        <section className="info-row">
-          <article className="panel paid-panel">
-            <h3>LATEST PAID COMMENTS</h3>
-            <div className="fixed-list">
-              {latestPaid.length === 0 ? <p className="muted">No paid comments yet.</p> : null}
-              {latestPaid.map((comment) => (
-                <p key={comment.id} className="feed-line">
-                  <strong>{comment.user.name}</strong>
-                  <span className="price">{comment.amount}</span>
-                  <span className="ellipsis">{comment.text}</span>
-                </p>
-              ))}
-            </div>
-          </article>
+        <div className="center-lane">
+          <section className="info-row">
+            <article className="panel paid-panel">
+              <h3>LATEST PAID COMMENTS</h3>
+              <div className="fixed-list">
+                {latestPaid.length === 0 ? <p className="muted">No paid comments yet.</p> : null}
+                {latestPaid.map((comment) => (
+                  <p key={comment.id} className="feed-line">
+                    <strong>{comment.user.name}</strong>
+                    <span className="price">{comment.amount}</span>
+                    <span className="ellipsis">{comment.text}</span>
+                  </p>
+                ))}
+              </div>
+            </article>
 
-          <article className="panel rank-panel">
-            <h3>TOP SUPPORTERS</h3>
-            <div className="fixed-list">
-              {ranking.length === 0 ? <p className="muted">No supporters yet.</p> : null}
-              {ranking.map((entry, index) => (
-                <p key={entry.name} className="rank-line">
-                  <strong>#{index + 1}</strong>
-                  <span className="ellipsis">{entry.name}</span>
-                  <span>{entry.points.toLocaleString()} pt</span>
-                </p>
-              ))}
-            </div>
-          </article>
-        </section>
+            <article className="panel rank-panel">
+              <h3>TOP SUPPORTERS</h3>
+              <div className="fixed-list">
+                {ranking.length === 0 ? <p className="muted">No supporters yet.</p> : null}
+                {ranking.map((entry, index) => (
+                  <p key={entry.name} className="rank-line">
+                    <strong>#{index + 1}</strong>
+                    <span className="ellipsis">{entry.name}</span>
+                    <span>{entry.points.toLocaleString()} pt</span>
+                  </p>
+                ))}
+              </div>
+            </article>
+          </section>
 
-        <section className="vote-note panel">
-          <p className="vote-en">Just Comment "B" or "R" to Vote! Only B or R!</p>
-          <p className="vote-ja">投票は「B」か「R」を打つだけ！（BまたはRの1文字のみ！）</p>
-        </section>
-
+          <section className="vote-note panel">
+            <p className="vote-en">Just Comment "B" or "R" to Vote! Only B or R!</p>
+            <p className="vote-ja">投票は「B」か「R」を打つだけ！（BまたはRの1文字のみ！）</p>
+          </section>
+        </div>
         <CommandBar commands={COMMANDS} />
       </div>
     </main>
