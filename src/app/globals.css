@@ -238,6 +238,13 @@ body {
   background: rgba(2, 6, 23, 0.8);
 }
 
+
+.live-balance-note {
+  margin: 0.24rem 0 0;
+  text-align: center;
+  font-size: 0.67rem;
+  color: #94a3b8;
+}
 .battle-grid-midline {
   position: absolute;
   top: 0.34rem;
@@ -273,8 +280,10 @@ body {
 }
 
 .info-row {
+  width: min(100%, calc(100% - 252px));
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(230px, 0.9fr);
   gap: 0.46rem;
 }
 
@@ -365,11 +374,12 @@ body {
 }
 
 .command-mini-card {
-  min-height: 66px;
-  padding: 0.34rem;
+  min-height: 84px;
+  padding: 0.22rem 0.38rem 0.3rem;
   display: grid;
-  gap: 0.15rem;
-  border-radius: 16px;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.08rem;
+  border-radius: 22px;
   border-width: 2px;
 }
 
@@ -383,13 +393,34 @@ body {
   background: linear-gradient(135deg, rgba(248, 113, 113, 0.54), rgba(249, 115, 22, 0.62));
 }
 
-.command-label-en {
-  font-size: clamp(0.85rem, 1.25vw, 1.18rem);
-  line-height: 1.08;
+.command-amount {
+  min-height: 1rem;
+  font-size: clamp(0.72rem, 1.1vw, 0.95rem);
+  line-height: 1;
+  text-align: center;
+  opacity: 0.95;
+}
+
+.command-main-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.command-symbol {
+  font-size: clamp(2.2rem, 3.35vw, 3.4rem);
+  line-height: 0.8;
+}
+
+.command-action {
+  font-size: clamp(1.22rem, 1.55vw, 1.6rem);
+  line-height: 1;
 }
 
 .command-label-ja {
-  font-size: 0.74rem;
+  font-size: 0.66rem;
+  line-height: 1;
 }
 
 .stealth-link {
@@ -411,8 +442,12 @@ body {
     font-size: 1.25rem;
   }
 
-  .command-label-en {
-    font-size: 0.78rem;
+  .command-action {
+    font-size: 0.86rem;
+  }
+
+  .command-symbol {
+    font-size: 1.5rem;
   }
 }
 

@@ -7,10 +7,45 @@ const defaultCommands = [
   { code: '5R', team: 'red', labelEn: '$5 or ¥500 + “R”', labelJa: 'Attack Blue ×3💣' },
 ];
 
+function getCardCopy(command) {
+  const isBlue = command.team === 'blue';
+  const side = isBlue ? 'Blue' : 'Red';
+  const enemy = isBlue ? 'Red' : 'Blue';
+  const symbol = isBlue ? 'B' : 'R';
+
+  if (command.code.startsWith('5')) {
+    return {
+      amount: '$5 or ¥500',
+      action: `Attack ${enemy} ×3💣`,
+      symbol,
+    };
+  }
+
+  if (command.code.startsWith('3')) {
+    return {
+      amount: '$3 or ¥300',
+      action: `Vote ${side} ×3`,
+      symbol,
+    };
+  }
+
+  return {
+    amount: '',
+    action: `Vote ${side}`,
+    symbol,
+  };
+}
+
 function CommandCard({ command }) {
+  const copy = getCardCopy(command);
+
   return (
     <section className={`panel command-mini-card command-mini-card-${command.team}`}>
-      <span className="command-label-en hud-main-text">{command.labelEn}</span>
+      <span className="command-amount hud-main-text">{copy.amount || ' '}</span>
+      <div className="command-main-row">
+        <span className="command-symbol hud-main-text">“{copy.symbol}”</span>
+        <span className="command-action hud-main-text">{copy.action}</span>
+      </div>
       <span className="command-label-ja hud-sub-text">{command.labelJa}</span>
     </section>
   );
