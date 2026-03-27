@@ -222,7 +222,6 @@ export function BattleLayout({ data = battleMockData }) {
 
           <section className="battle-main panel">
             <div className="period-badge">PERIOD {periodNumber} <span>| 48</span> <em>{periodRemain}</em></div>
-            <p className="period-desc">{activePeriod?.description || activePeriod?.overlayText || '6 patterns x 8 cycles'}</p>
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
@@ -278,9 +277,8 @@ export function BattleLayout({ data = battleMockData }) {
             <p className="vote-en">Just Comment "B" or "R" to Vote! Only B or R!</p>
             <p className="vote-ja">投票は「B」か「R」を打つだけ！（BまたはRの1文字のみ！）</p>
           </section>
-
-          <CommandBar commands={COMMANDS} />
         </div>
+        <CommandBar commands={COMMANDS} />
       </div>
     </main>
   );
