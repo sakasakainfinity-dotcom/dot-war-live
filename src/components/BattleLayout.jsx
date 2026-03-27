@@ -88,9 +88,11 @@ export function BattleLayout({ data = battleMockData }) {
   const [settings, setSettings] = useState(() => readLiveSettings());
   const [nowMs, setNowMs] = useState(Date.now());
   const [totalBalance, setTotalBalance] = useState(0);
+  const [periodCommittedBalance, setPeriodCommittedBalance] = useState(0);
   const [comments, setComments] = useState([]);
   const [paidComments, setPaidComments] = useState([]);
   const voteCooldownRef = useRef(new Map());
+  const activePeriodRef = useRef(null);
 
   useEffect(() => {
     const tick = setInterval(() => setNowMs(Date.now()), 1000);
@@ -109,6 +111,19 @@ export function BattleLayout({ data = battleMockData }) {
 
   const activePeriod = getActivePeriod(settings, nowMs);
   const nextPeriod = getNextPeriod(settings, nowMs);
+
+  useEffect(() => {
+    const currentPeriodId = activePeriod?.id;
+    if (!currentPeriodId) return;
+    if (activePeriodRef.current === null) {
+      activePeriodRef.current = currentPeriodId;
+      return;
+    }
+    if (activePeriodRef.current !== currentPeriodId) {
+      setPeriodCommittedBalance(Math.floor(totalBalance));
+      activePeriodRef.current = currentPeriodId;
+    }
+  }, [activePeriod?.id, totalBalance]);
 
   const applyCommand = useCallback(
     ({ commandCode, user, text, amount = '' }) => {
@@ -159,7 +174,10 @@ export function BattleLayout({ data = battleMockData }) {
   }, [applyCommand]);
 
   const grid = useMemo(() => buildFrontlineGrid(Math.floor(totalBalance)), [totalBalance]);
-  const blueCells = useMemo(() => grid.flat().filter((cell) => cell === 'blue').length, [grid]);
+  const liveBlueCells = useMemo(() => grid.flat().filter((cell) => cell === 'blue').length, [grid]);
+  const liveRedCells = BOARD_ROWS * BOARD_COLS - liveBlueCells;
+  const committedGrid = useMemo(() => buildFrontlineGrid(Math.floor(periodCommittedBalance)), [periodCommittedBalance]);
+  const blueCells = useMemo(() => committedGrid.flat().filter((cell) => cell === 'blue').length, [committedGrid]);
   const redCells = BOARD_ROWS * BOARD_COLS - blueCells;
 
   const blueVotes = comments.filter((comment) => ['B', '3B', '5B'].includes(comment.commandCode)).length;
@@ -170,7 +188,6 @@ export function BattleLayout({ data = battleMockData }) {
   const latestPaid = paidComments.slice(0, 3);
   const ranking = toRanking(paidComments);
 
-  const nextCountdown = nextPeriod ? formatCountdown(new Date(nextPeriod.startAt).getTime() - nowMs) : '00:00';
   const periodNumber = Math.max(1, Math.min(48, activePeriod?.sortOrder ?? 1));
   const periodRemain = activePeriod ? formatCountdown(new Date(activePeriod.endAt).getTime() - nowMs) : '00:00';
 
@@ -184,7 +201,7 @@ export function BattleLayout({ data = battleMockData }) {
           </div>
           <div className="war-status-block">
             <p className="war-status-en">NOW: {activePeriod?.name ?? '通常戦'}</p>
-            <p className="war-status-en">NEXT BONUS IN {nextCountdown}</p>
+            <p className="war-status-en">Next period is {nextPeriod?.name ?? '通常戦'}</p>
           </div>
           <Link href="/admin" className="stealth-link">admin</Link>
         </header>
@@ -209,6 +226,7 @@ export function BattleLayout({ data = battleMockData }) {
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
+            <p className="live-balance-note">Live front: B {liveBlueCells} / R {liveRedCells} (gauge reflects on period end)</p>
           </section>
 
           <aside className="panel side-tank side-tank-red">
