@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { battleMockData } from '../lib/mockData';
-import { getActivePeriod, getNextPeriod, readLiveSettings } from '../lib/liveSettings';
+import { getPeriodContext, readLiveSettings } from '../lib/liveSettings';
 import { BattleGrid } from './BattleGrid';
 import { CommandBar } from './CommandGuideDock';
 
@@ -18,7 +18,7 @@ const COMMAND_EFFECTS = {
   '5R': { blueDelta: -3, redDelta: 0 },
 };
 
-const CHAT_LINES = ['中央押したい！', '守備ライン維持しよう', '今逆転あるぞ', 'R go go', 'B push center', 'スパチャで流れ変える'];
+const CHAT_LINES = ['中央押したい！', '守備ライン維持しよう', '今逆転あるぞ', 'R go go', 'B push center', 'スパチャで流れ変える', '💣 いま爆破チャンス！'];
 const USERS = ['Kenji', 'Mika', 'Aoi', 'Sora', 'Riku', 'Moe', 'Yuto', 'Nana', 'Hina', 'Kota'];
 
 const COMMANDS = [
@@ -84,6 +84,28 @@ function toRanking(paidComments) {
     .slice(0, 3);
 }
 
+function applyPeriodRule(periodKey, baseDelta, text, beforeBalance) {
+  let adjustedDelta = baseDelta;
+
+  if (periodKey === 'double_vote') {
+    adjustedDelta *= 2;
+  }
+
+  if (periodKey === 'central_bonus' && Math.abs(beforeBalance) <= BOARD_ROWS && adjustedDelta !== 0) {
+    adjustedDelta += Math.sign(adjustedDelta);
+  }
+
+  if (periodKey === 'ai_random' && Math.random() < 0.2) {
+    adjustedDelta += Math.random() < 0.5 ? -2 : 2;
+  }
+
+  if (periodKey === 'random_bomb' && text.includes('💣')) {
+    adjustedDelta += Math.random() < 0.5 ? -4 : 4;
+  }
+
+  return adjustedDelta;
+}
+
 export function BattleLayout({ data = battleMockData }) {
   const [settings, setSettings] = useState(() => readLiveSettings());
   const [nowMs, setNowMs] = useState(Date.now());
@@ -109,8 +131,9 @@ export function BattleLayout({ data = battleMockData }) {
     };
   }, []);
 
-  const activePeriod = getActivePeriod(settings, nowMs);
-  const nextPeriod = getNextPeriod(settings, nowMs);
+  const periodContext = getPeriodContext(settings, nowMs);
+  const activePeriod = periodContext.current;
+  const nextPeriod = periodContext.next;
 
   useEffect(() => {
     const currentPeriodId = activePeriod?.id;
@@ -135,8 +158,11 @@ export function BattleLayout({ data = battleMockData }) {
       if (!isSuperChat && Date.now() - lastVoteAt < 15_000) return;
       if (!isSuperChat) voteCooldownRef.current.set(userKey, Date.now());
 
-      const periodBoost = Number(activePeriod.bonusValue ?? 1);
-      setTotalBalance((prev) => clampTotalBalance(prev + (effect.blueDelta - effect.redDelta) * periodBoost));
+      const commandDelta = effect.blueDelta - effect.redDelta;
+      setTotalBalance((prev) => {
+        const adjusted = applyPeriodRule(activePeriod.periodKey, commandDelta, text, prev);
+        return clampTotalBalance(prev + adjusted);
+      });
 
       const entry = {
         id: `${Date.now()}-${Math.random()}`,
@@ -188,20 +214,22 @@ export function BattleLayout({ data = battleMockData }) {
   const latestPaid = paidComments.slice(0, 3);
   const ranking = toRanking(paidComments);
 
-  const periodNumber = Math.max(1, Math.min(48, activePeriod?.sortOrder ?? 1));
-  const periodRemain = activePeriod ? formatCountdown(new Date(activePeriod.endAt).getTime() - nowMs) : '00:00';
+  const periodNumber = periodContext.currentPeriodIndex;
+  const periodRemain = formatCountdown(periodContext.remainingMs);
 
   return (
     <main className="hud-root">
       <div className="hud-stage war-stage">
         <header className="war-header panel">
           <div>
-            <p className="war-title-en">{settings.title}</p>
-            <p className="war-title-ja">{settings.theme}</p>
+            <p className="war-title-en"><span className="team-blue">{settings.teamA_en}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_en}</span></p>
+            <p className="war-title-ja"><span className="team-blue">{settings.teamA_ja}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_ja}</span></p>
           </div>
           <div className="war-status-block">
-            <p className="war-status-en">NOW: {activePeriod?.name ?? '通常戦'}</p>
-            <p className="war-status-en">Next period is {nextPeriod?.name ?? '通常戦'}</p>
+            <p className="war-status-now">NOW: {activePeriod?.title ?? 'NORMAL'}</p>
+            <p className="war-status-sub-en">{activePeriod?.descriptionEn ?? 'Standard battle rules.'}</p>
+            <p className="war-status-sub-ja">{activePeriod?.descriptionJa ?? '通常ルールのバトルです。'}</p>
+            <p className="war-status-next">Next period: {nextPeriod?.title ?? 'NORMAL'}</p>
           </div>
           <Link href="/admin" className="stealth-link">admin</Link>
         </header>

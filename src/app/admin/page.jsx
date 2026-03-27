@@ -28,6 +28,8 @@ function BoolField({ label, value, onChange }) {
   );
 }
 
+const FIXED_PERIOD_LABELS = ['NORMAL', 'DOUBLE VOTE', 'CENTRAL BONUS', 'NORMAL', 'AI RANDOM', 'RANDOM BOMB'];
+
 export default function AdminPage() {
   const defaults = useMemo(() => createDefaultLiveSettings(), []);
   const [form, setForm] = useState(defaults);
@@ -37,10 +39,10 @@ export default function AdminPage() {
     setForm(readLiveSettings());
   }, []);
 
-  const updatePeriod = (id, key, value) => {
+  const updatePeriodDefinition = (index, key, value) => {
     setForm((prev) => ({
       ...prev,
-      periods: prev.periods.map((period) => (period.id === id ? { ...period, [key]: value } : period)),
+      periodDefinitions: prev.periodDefinitions.map((period, periodIndex) => (periodIndex === index ? { ...period, [key]: value } : period)),
     }));
   };
 
@@ -57,26 +59,14 @@ export default function AdminPage() {
   return (
     <main className="admin-root">
       <section className="admin-card admin-card-wide">
-        <h1>Dot War Live Admin (24H)</h1>
-        <p className="admin-help">配信全体設定・ピリオド設定・AI返信設定を保存すると即時に本番UIへ反映されます。</p>
+        <h1>Dot War Live Admin (48 Period Fixed Loop)</h1>
+        <p className="admin-help">配信全体設定・6種のperiod定義・AI返信設定を保存すると即時に本番UIへ反映されます。</p>
 
         <div className="admin-grid-2">
           <label className="admin-field">
             <span>配信日</span>
             <input value={form.streamDate} onChange={(e) => setForm((prev) => ({ ...prev, streamDate: e.target.value }))} />
           </label>
-          <label className="admin-field">
-            <span>配信タイトル</span>
-            <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
-          </label>
-        </div>
-
-        <label className="admin-field">
-          <span>メインテーマ</span>
-          <input value={form.theme} onChange={(e) => setForm((prev) => ({ ...prev, theme: e.target.value }))} />
-        </label>
-
-        <div className="admin-grid-2">
           <label className="admin-field">
             <span>配信開始日時</span>
             <input
@@ -85,6 +75,9 @@ export default function AdminPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, startAt: fromLocalInputValue(e.target.value, prev.startAt) }))}
             />
           </label>
+        </div>
+
+        <div className="admin-grid-2">
           <label className="admin-field">
             <span>配信終了日時</span>
             <input
@@ -94,6 +87,28 @@ export default function AdminPage() {
             />
           </label>
         </div>
+
+        <section className="admin-section">
+          <h2>対戦タイトル入力（VSは自動）</h2>
+          <div className="admin-grid-2">
+            <label className="admin-field">
+              <span>teamA_en</span>
+              <input value={form.teamA_en} onChange={(e) => setForm((prev) => ({ ...prev, teamA_en: e.target.value }))} />
+            </label>
+            <label className="admin-field">
+              <span>teamB_en</span>
+              <input value={form.teamB_en} onChange={(e) => setForm((prev) => ({ ...prev, teamB_en: e.target.value }))} />
+            </label>
+            <label className="admin-field">
+              <span>teamA_ja</span>
+              <input value={form.teamA_ja} onChange={(e) => setForm((prev) => ({ ...prev, teamA_ja: e.target.value }))} />
+            </label>
+            <label className="admin-field">
+              <span>teamB_ja</span>
+              <input value={form.teamB_ja} onChange={(e) => setForm((prev) => ({ ...prev, teamB_ja: e.target.value }))} />
+            </label>
+          </div>
+        </section>
 
         <div className="admin-toggle-grid">
           <BoolField label="自動実況ON" value={form.autoNarrationEnabled} onChange={(v) => setForm((p) => ({ ...p, autoNarrationEnabled: v }))} />
@@ -137,30 +152,19 @@ export default function AdminPage() {
         </section>
 
         <section className="admin-section">
-          <h2>ピリオド設定</h2>
+          <h2>固定period定義（6種類のみ編集）</h2>
+          <p className="admin-help">順番固定: NORMAL → DOUBLE VOTE → CENTRAL BONUS → NORMAL → AI RANDOM → RANDOM BOMB（これを8周 = 計48period）</p>
           <div className="period-list">
-            {form.periods.map((period) => (
+            {form.periodDefinitions.map((period, index) => (
               <div key={period.id} className="period-card">
+                <h3>{`${index + 1}. ${FIXED_PERIOD_LABELS[index]}`}</h3>
                 <div className="admin-grid-3">
-                  <label className="admin-field"><span>表示順</span><input type="number" value={period.sortOrder} onChange={(e) => updatePeriod(period.id, 'sortOrder', e.target.value)} /></label>
-                  <label className="admin-field"><span>ピリオド名</span><input value={period.name} onChange={(e) => updatePeriod(period.id, 'name', e.target.value)} /></label>
-                  <label className="admin-field"><span>ボーナスタイプ</span><input value={period.bonusType} onChange={(e) => updatePeriod(period.id, 'bonusType', e.target.value)} /></label>
-                  <label className="admin-field"><span>開始時刻</span><input type="datetime-local" value={toLocalInputValue(period.startAt)} onChange={(e) => updatePeriod(period.id, 'startAt', fromLocalInputValue(e.target.value, period.startAt))} /></label>
-                  <label className="admin-field"><span>終了時刻</span><input type="datetime-local" value={toLocalInputValue(period.endAt)} onChange={(e) => updatePeriod(period.id, 'endAt', fromLocalInputValue(e.target.value, period.endAt))} /></label>
-                  <label className="admin-field"><span>倍率</span><input type="number" step="0.1" value={period.bonusValue} onChange={(e) => updatePeriod(period.id, 'bonusValue', e.target.value)} /></label>
-                  <label className="admin-field"><span>AI実況レベル</span><input type="number" min="0" max="5" value={period.narrationLevel} onChange={(e) => updatePeriod(period.id, 'narrationLevel', e.target.value)} /></label>
-                  <label className="admin-field">
-                    <span>返信モード</span>
-                    <select value={period.aiCommentMode} onChange={(e) => updatePeriod(period.id, 'aiCommentMode', e.target.value)}>
-                      <option value="broad">broad</option>
-                      <option value="normal">normal</option>
-                      <option value="strict">strict</option>
-                    </select>
-                  </label>
-                  <BoolField label="音声返信ON" value={period.voiceReplyEnabled} onChange={(v) => updatePeriod(period.id, 'voiceReplyEnabled', v)} />
+                  <label className="admin-field"><span>period key</span><input value={period.periodKey} disabled /></label>
+                  <label className="admin-field"><span>period title (EN)</span><input value={period.title} onChange={(e) => updatePeriodDefinition(index, 'title', e.target.value)} /></label>
+                  <BoolField label="enabled" value={period.enabled} onChange={(v) => updatePeriodDefinition(index, 'enabled', v)} />
                 </div>
-                <label className="admin-field"><span>ピリオド説明</span><input value={period.description} onChange={(e) => updatePeriod(period.id, 'description', e.target.value)} /></label>
-                <label className="admin-field"><span>特別表示文言</span><input value={period.overlayText} onChange={(e) => updatePeriod(period.id, 'overlayText', e.target.value)} /></label>
+                <label className="admin-field"><span>short description en</span><input value={period.descriptionEn} onChange={(e) => updatePeriodDefinition(index, 'descriptionEn', e.target.value)} /></label>
+                <label className="admin-field"><span>short description ja</span><input value={period.descriptionJa} onChange={(e) => updatePeriodDefinition(index, 'descriptionJa', e.target.value)} /></label>
               </div>
             ))}
           </div>
