@@ -1,4 +1,15 @@
 export const LIVE_SETTINGS_STORAGE_KEY = 'dot-war-live-settings-v2';
+export const PERIOD_TOTAL_COUNT = 48;
+export const PERIOD_CYCLE_SIZE = 6;
+
+const FIXED_PERIOD_SLOTS = [
+  { slotKey: 'normal_1', periodKey: 'normal', title: 'NORMAL', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。' },
+  { slotKey: 'double_vote', periodKey: 'double_vote', title: 'DOUBLE VOTE', descriptionEn: 'Votes count as double.', descriptionJa: '投票が2倍で反映されます。' },
+  { slotKey: 'central_bonus', periodKey: 'central_bonus', title: 'CENTRAL BONUS', descriptionEn: 'Break through the center for bonus points.', descriptionJa: '中央突破でボーナスが入ります。' },
+  { slotKey: 'normal_2', periodKey: 'normal', title: 'NORMAL', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。' },
+  { slotKey: 'ai_random', periodKey: 'ai_random', title: 'AI RANDOM', descriptionEn: 'AI may trigger a random event.', descriptionJa: 'AIがランダムイベントを発動します。' },
+  { slotKey: 'random_bomb', periodKey: 'random_bomb', title: 'RANDOM BOMB', descriptionEn: 'Bomb comments may blast either side.', descriptionJa: '爆弾コメントでどちらかがランダム爆破されます。' },
+];
 
 function startOfNextHour() {
   const now = new Date();
@@ -8,33 +19,16 @@ function startOfNextHour() {
   return next;
 }
 
-function makePeriod(baseStartAt, hourOffset, name, bonusType, overlayText, overrides = {}) {
-  const startAt = new Date(baseStartAt.getTime() + hourOffset * 60 * 60 * 1000);
-  const endAt = new Date(startAt.getTime() + 3 * 60 * 60 * 1000);
-  return {
-    id: `${hourOffset}-${name}`,
-    sortOrder: hourOffset + 1,
-    name,
-    description: `${name} block`,
-    startAt: startAt.toISOString(),
-    endAt: endAt.toISOString(),
-    bonusType,
-    bonusValue: 1,
-    narrationLevel: 2,
-    aiCommentMode: 'broad',
-    voiceReplyEnabled: true,
-    overlayText,
-    ...overrides,
-  };
-}
-
 export function createDefaultLiveSettings() {
   const startAt = startOfNextHour();
   const endAt = new Date(startAt.getTime() + 24 * 60 * 60 * 1000);
+
   return {
     streamDate: startAt.toISOString().slice(0, 10),
-    title: 'Dot War Live 24H Frontline',
-    theme: 'いつ来ても何か起きる24時間大戦',
+    teamA_en: 'CITY',
+    teamB_en: 'COUNTRY',
+    teamA_ja: '都会',
+    teamB_ja: '田舎',
     startAt: startAt.toISOString(),
     endAt: endAt.toISOString(),
     autoNarrationEnabled: true,
@@ -61,16 +55,15 @@ export function createDefaultLiveSettings() {
       maxSeconds: 8,
       summarizeLongText: true,
     },
-    periods: [
-      makePeriod(startAt, 0, '通常戦', 'standard', 'NOW: 通常戦 / NEXT BONUS IN countdown'),
-      makePeriod(startAt, 3, '爆弾強化タイム', 'bomb_boost', '爆弾ダメージ増加', { bonusValue: 1.5, narrationLevel: 3 }),
-      makePeriod(startAt, 6, '中央突破ボーナス', 'center_break', '中央突破で得点2倍', { bonusValue: 2, aiCommentMode: 'normal' }),
-      makePeriod(startAt, 9, '壁多めステージ', 'wall_defense', '守備ライン強化', { voiceReplyEnabled: false }),
-      makePeriod(startAt, 12, '得点2倍タイム', 'double_score', '得点2倍', { bonusValue: 2, aiCommentMode: 'normal' }),
-      makePeriod(startAt, 15, '深夜静音モード', 'night_silent', '静音運用 / 返信控えめ', { voiceReplyEnabled: false, aiCommentMode: 'strict', narrationLevel: 1 }),
-      makePeriod(startAt, 18, 'ゴールデン激戦タイム', 'golden_rush', 'コメント参加ボーナス', { bonusValue: 1.8, aiCommentMode: 'broad', narrationLevel: 4 }),
-      makePeriod(startAt, 21, 'ラストスパート', 'last_spurt', '最終3時間ボーナス', { bonusValue: 2.2, aiCommentMode: 'strict', narrationLevel: 5 }),
-    ],
+    periodDefinitions: FIXED_PERIOD_SLOTS.map((slot, index) => ({
+      id: slot.slotKey,
+      slotIndex: index,
+      periodKey: slot.periodKey,
+      title: slot.title,
+      descriptionEn: slot.descriptionEn,
+      descriptionJa: slot.descriptionJa,
+      enabled: true,
+    })),
   };
 }
 
@@ -90,51 +83,39 @@ function normalizeDate(value, fallback) {
   return Number.isNaN(dt.getTime()) ? fallback : dt.toISOString();
 }
 
-function normalizePeriod(period, index, fallbackStartAt, fallbackEndAt) {
-  const base = {
-    id: `period-${index + 1}`,
-    sortOrder: index + 1,
-    name: `Period ${index + 1}`,
-    description: '',
-    startAt: fallbackStartAt,
-    endAt: fallbackEndAt,
-    bonusType: 'standard',
-    bonusValue: 1,
-    narrationLevel: 2,
-    aiCommentMode: 'broad',
-    voiceReplyEnabled: true,
-    overlayText: '',
-  };
-
+function normalizePeriodDefinition(rawDefinition, fallbackDefinition, index) {
   return {
-    id: `${period?.id ?? base.id}`,
-    sortOrder: normalizeNumber(period?.sortOrder, base.sortOrder, 1, 99),
-    name: `${period?.name ?? base.name}`.trim() || base.name,
-    description: `${period?.description ?? base.description}`.trim(),
-    startAt: normalizeDate(period?.startAt, base.startAt),
-    endAt: normalizeDate(period?.endAt, base.endAt),
-    bonusType: `${period?.bonusType ?? base.bonusType}`.trim() || base.bonusType,
-    bonusValue: normalizeNumber(period?.bonusValue, base.bonusValue, 0.5, 5, 2),
-    narrationLevel: normalizeNumber(period?.narrationLevel, base.narrationLevel, 0, 5),
-    aiCommentMode: ['broad', 'normal', 'strict'].includes(period?.aiCommentMode) ? period.aiCommentMode : base.aiCommentMode,
-    voiceReplyEnabled: normalizeBoolean(period?.voiceReplyEnabled, base.voiceReplyEnabled),
-    overlayText: `${period?.overlayText ?? base.overlayText}`.trim(),
+    id: fallbackDefinition.id,
+    slotIndex: index,
+    periodKey: fallbackDefinition.periodKey,
+    title: `${rawDefinition?.title ?? fallbackDefinition.title}`.trim() || fallbackDefinition.title,
+    descriptionEn: `${rawDefinition?.descriptionEn ?? fallbackDefinition.descriptionEn}`.trim() || fallbackDefinition.descriptionEn,
+    descriptionJa: `${rawDefinition?.descriptionJa ?? fallbackDefinition.descriptionJa}`.trim() || fallbackDefinition.descriptionJa,
+    enabled: normalizeBoolean(rawDefinition?.enabled, true),
   };
+}
+
+function normalizeTeamName(value, fallback) {
+  return `${value ?? fallback}`.trim() || fallback;
 }
 
 export function normalizeLiveSettings(raw) {
   const fallback = createDefaultLiveSettings();
   const startAt = normalizeDate(raw?.startAt, fallback.startAt);
   const endAt = normalizeDate(raw?.endAt, fallback.endAt);
-  const safePeriods = (Array.isArray(raw?.periods) ? raw.periods : fallback.periods)
-    .slice(0, 24)
-    .map((period, index) => normalizePeriod(period, index, startAt, endAt))
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const rawDefinitions = Array.isArray(raw?.periodDefinitions) ? raw.periodDefinitions : [];
+  const normalizedDefinitions = fallback.periodDefinitions.map((fallbackDefinition, index) => {
+    const candidate = rawDefinitions[index];
+    return normalizePeriodDefinition(candidate, fallbackDefinition, index);
+  });
 
   return {
     streamDate: `${raw?.streamDate ?? fallback.streamDate}`,
-    title: `${raw?.title ?? fallback.title}`.trim() || fallback.title,
-    theme: `${raw?.theme ?? fallback.theme}`.trim() || fallback.theme,
+    teamA_en: normalizeTeamName(raw?.teamA_en, fallback.teamA_en),
+    teamB_en: normalizeTeamName(raw?.teamB_en, fallback.teamB_en),
+    teamA_ja: normalizeTeamName(raw?.teamA_ja, fallback.teamA_ja),
+    teamB_ja: normalizeTeamName(raw?.teamB_ja, fallback.teamB_ja),
     startAt,
     endAt,
     autoNarrationEnabled: normalizeBoolean(raw?.autoNarrationEnabled, fallback.autoNarrationEnabled),
@@ -161,7 +142,7 @@ export function normalizeLiveSettings(raw) {
       maxSeconds: normalizeNumber(raw?.voiceConfig?.maxSeconds, fallback.voiceConfig.maxSeconds, 2, 20),
       summarizeLongText: normalizeBoolean(raw?.voiceConfig?.summarizeLongText, fallback.voiceConfig.summarizeLongText),
     },
-    periods: safePeriods.length > 0 ? safePeriods : fallback.periods,
+    periodDefinitions: normalizedDefinitions,
   };
 }
 
@@ -194,21 +175,62 @@ export function writeLiveSettings(nextSettings) {
   window.dispatchEvent(new CustomEvent('dot-war-live:settings-updated', { detail: normalized }));
 }
 
+function getPeriodDurationMs(settings) {
+  const startMs = new Date(settings?.startAt).getTime();
+  const endMs = new Date(settings?.endAt).getTime();
+  const totalDurationMs = Math.max(1, endMs - startMs);
+  return Math.floor(totalDurationMs / PERIOD_TOTAL_COUNT);
+}
+
+function makePeriodInstance(definition, periodIndex, periodStartMs, periodEndMs) {
+  return {
+    id: `period-${periodIndex}`,
+    periodIndex,
+    slotIndex: (periodIndex - 1) % PERIOD_CYCLE_SIZE,
+    periodKey: definition.periodKey,
+    title: definition.title,
+    descriptionEn: definition.descriptionEn,
+    descriptionJa: definition.descriptionJa,
+    enabled: definition.enabled,
+    startAt: new Date(periodStartMs).toISOString(),
+    endAt: new Date(periodEndMs).toISOString(),
+  };
+}
+
+export function getPeriodContext(settings, nowMs = Date.now()) {
+  const safeSettings = normalizeLiveSettings(settings);
+  const definitions = safeSettings.periodDefinitions;
+  const startMs = new Date(safeSettings.startAt).getTime();
+  const durationMs = getPeriodDurationMs(safeSettings);
+
+  const elapsed = nowMs - startMs;
+  const rawIndex = elapsed < 0 ? 1 : Math.floor(elapsed / durationMs) + 1;
+  const currentPeriodIndex = Math.max(1, Math.min(PERIOD_TOTAL_COUNT, rawIndex));
+  const nextPeriodIndex = currentPeriodIndex === PERIOD_TOTAL_COUNT ? 1 : currentPeriodIndex + 1;
+
+  const currentSlotIndex = (currentPeriodIndex - 1) % PERIOD_CYCLE_SIZE;
+  const nextSlotIndex = (nextPeriodIndex - 1) % PERIOD_CYCLE_SIZE;
+  const currentDef = definitions[currentSlotIndex];
+  const nextDef = definitions[nextSlotIndex];
+
+  const currentStartMs = startMs + (currentPeriodIndex - 1) * durationMs;
+  const currentEndMs = currentStartMs + durationMs;
+  const remainingMs = nowMs < currentStartMs ? durationMs : Math.max(0, currentEndMs - nowMs);
+
+  return {
+    currentPeriodIndex,
+    nextPeriodIndex,
+    current: makePeriodInstance(currentDef, currentPeriodIndex, currentStartMs, currentEndMs),
+    next: makePeriodInstance(nextDef, nextPeriodIndex, currentEndMs, currentEndMs + durationMs),
+    periodDurationMs: durationMs,
+    remainingMs,
+  };
+}
+
 export function getActivePeriod(settings, nowMs = Date.now()) {
-  const periods = settings?.periods ?? [];
-  const found = periods.find((period) => {
-    const start = new Date(period.startAt).getTime();
-    const end = new Date(period.endAt).getTime();
-    return nowMs >= start && nowMs < end;
-  });
-  return found ?? periods[0] ?? null;
+  return getPeriodContext(settings, nowMs).current;
 }
 
 export function getNextPeriod(settings, nowMs = Date.now()) {
-  const periods = settings?.periods ?? [];
-  return (
-    periods
-      .filter((period) => new Date(period.startAt).getTime() > nowMs)
-      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0] ?? null
-  );
+  return getPeriodContext(settings, nowMs).next;
 }

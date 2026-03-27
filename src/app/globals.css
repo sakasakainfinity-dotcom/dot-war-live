@@ -72,15 +72,51 @@ body {
   color: #cbd5e1;
 }
 
-.war-status-block {
-  text-align: right;
+.team-blue {
+  color: #7dd3fc;
 }
 
-.war-status-en {
+.team-red {
+  color: #fca5a5;
+}
+
+.team-vs {
+  color: #e2e8f0;
+}
+
+.war-status-block {
+  text-align: right;
+  display: grid;
+  gap: 0.05rem;
+}
+
+.war-status-now {
   margin: 0;
   font-weight: 900;
-  font-size: clamp(0.78rem, 1.2vw, 1rem);
+  font-size: clamp(0.82rem, 1.25vw, 1.05rem);
   color: #fef08a;
+}
+
+.war-status-sub-en,
+.war-status-sub-ja,
+.war-status-next {
+  margin: 0;
+}
+
+.war-status-sub-en {
+  font-size: clamp(0.62rem, 0.9vw, 0.8rem);
+  color: #e2e8f0;
+}
+
+.war-status-sub-ja {
+  font-size: clamp(0.54rem, 0.74vw, 0.68rem);
+  color: #cbd5e1;
+}
+
+.war-status-next {
+  font-size: clamp(0.62rem, 0.9vw, 0.8rem);
+  color: #bfdbfe;
+  font-weight: 700;
 }
 
 .battle-zone {
@@ -538,6 +574,17 @@ body {
 
 .admin-section h2 {
   margin: 0 0 0.45rem;
+}
+
+.admin-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.admin-help {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.86rem;
 }
 
 .period-list {
