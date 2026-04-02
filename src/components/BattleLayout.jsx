@@ -18,9 +18,6 @@ const COMMAND_EFFECTS = {
   '5R': { blueDelta: -3, redDelta: 0 },
 };
 
-const CHAT_LINES = ['中央押したい！', '守備ライン維持しよう', '今逆転あるぞ', 'R go go', 'B push center', 'スパチャで流れ変える', '💣 いま爆破チャンス！'];
-const USERS = ['Kenji', 'Mika', 'Aoi', 'Sora', 'Riku', 'Moe', 'Yuto', 'Nana', 'Hina', 'Kota'];
-
 const COMMANDS = [
   { code: 'B', team: 'blue', labelEn: '“B” Vote Blue', labelJa: '青へ1票' },
   { code: '3B', team: 'blue', labelEn: '$3 or ¥300 + “B”', labelJa: '青へ3票' },
@@ -29,10 +26,6 @@ const COMMANDS = [
   { code: '3R', team: 'red', labelEn: '$3 or ¥300 + “R”', labelJa: '赤へ3票' },
   { code: '5R', team: 'red', labelEn: '$5 or ¥500 + “R”', labelJa: '青へ攻撃×3💣' },
 ];
-
-function pick(list) {
-  return list[Math.floor(Math.random() * list.length)];
-}
 
 function formatCountdown(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -115,6 +108,8 @@ export function BattleLayout({ data = battleMockData }) {
   const [paidComments, setPaidComments] = useState([]);
   const voteCooldownRef = useRef(new Map());
   const activePeriodRef = useRef(null);
+  const nextPageTokenRef = useRef('');
+  const seenMessageIdsRef = useRef(new Set());
 
   useEffect(() => {
     const tick = setInterval(() => setNowMs(Date.now()), 1000);
@@ -184,19 +179,44 @@ export function BattleLayout({ data = battleMockData }) {
   );
 
   useEffect(() => {
-    const ticker = setInterval(() => {
-      const command = pick(COMMANDS);
-      const userName = pick(USERS);
-      const superAmount = command.code.startsWith('3') ? '¥300 / $3' : command.code.startsWith('5') ? '¥500 / $5' : '';
-      applyCommand({
-        commandCode: command.code,
-        user: { id: `${userName.toLowerCase()}-id`, name: userName, platform: 'youtube' },
-        text: `${command.code} ${pick(CHAT_LINES)}`,
-        amount: superAmount,
-      });
-    }, 1700);
+    let active = true;
+    let timer;
 
-    return () => clearInterval(ticker);
+    const poll = async () => {
+      const pageToken = nextPageTokenRef.current ? `?pageToken=${encodeURIComponent(nextPageTokenRef.current)}` : '';
+      const res = await fetch(`/api/youtube/comments${pageToken}`, { cache: 'no-store' }).catch(() => null);
+      if (!active) return;
+      if (!res || !res.ok) {
+        timer = setTimeout(poll, 5000);
+        return;
+      }
+
+      const data = await res.json();
+      const received = Array.isArray(data.comments) ? data.comments : [];
+      nextPageTokenRef.current = data.nextPageToken || '';
+      const freshItems = received.filter((item) => {
+        if (seenMessageIdsRef.current.has(item.id)) return false;
+        seenMessageIdsRef.current.add(item.id);
+        return true;
+      });
+
+      freshItems.reverse().forEach((item) => {
+        applyCommand({
+          commandCode: item.commandCode,
+          user: item.user,
+          text: item.text,
+          amount: item.amount || '',
+        });
+      });
+
+      timer = setTimeout(poll, Number(data.pollingIntervalMs) || 5000);
+    };
+
+    poll();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [applyCommand]);
 
   const grid = useMemo(() => buildFrontlineGrid(Math.floor(totalBalance)), [totalBalance]);
