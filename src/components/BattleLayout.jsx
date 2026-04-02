@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { battleMockData } from '../lib/mockData';
 import { getPeriodContext, readLiveSettings } from '../lib/liveSettings';
 import { BattleGrid } from './BattleGrid';
 import { CommandBar } from './CommandGuideDock';
@@ -57,26 +56,6 @@ function clampTotalBalance(value) {
   return Math.max(-maxRed, Math.min(maxBlue, value));
 }
 
-function parseSupportPoints(amount = '') {
-  const dollar = amount.match(/\$(\d+(?:\.\d+)?)/);
-  if (dollar) return Math.round(Number(dollar[1]) * 100);
-  const yen = amount.match(/¥\s?(\d+[\d,]*)/);
-  if (yen) return Number(yen[1].replaceAll(',', ''));
-  return 0;
-}
-
-function toRanking(paidComments) {
-  const map = new Map();
-  paidComments.forEach((item) => {
-    const current = map.get(item.user.name) || 0;
-    map.set(item.user.name, current + parseSupportPoints(item.amount));
-  });
-  return [...map.entries()]
-    .map(([name, points]) => ({ name, points }))
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 3);
-}
-
 function applyPeriodRule(periodKey, baseDelta, text, beforeBalance) {
   let adjustedDelta = baseDelta;
 
@@ -99,13 +78,14 @@ function applyPeriodRule(periodKey, baseDelta, text, beforeBalance) {
   return adjustedDelta;
 }
 
-export function BattleLayout({ data = battleMockData }) {
+export function BattleLayout() {
   const [settings, setSettings] = useState(() => readLiveSettings());
   const [nowMs, setNowMs] = useState(Date.now());
   const [totalBalance, setTotalBalance] = useState(0);
   const [periodCommittedBalance, setPeriodCommittedBalance] = useState(0);
   const [comments, setComments] = useState([]);
-  const [paidComments, setPaidComments] = useState([]);
+  const [topSupporters, setTopSupporters] = useState([]);
+  const [latestPaidComments, setLatestPaidComments] = useState([]);
   const voteCooldownRef = useRef(new Map());
   const activePeriodRef = useRef(null);
   const nextPageTokenRef = useRef('');
@@ -171,9 +151,6 @@ export function BattleLayout({ data = battleMockData }) {
 
       setComments((prev) => [entry, ...prev].slice(0, 120));
 
-      if (isSuperChat) {
-        setPaidComments((prev) => [entry, ...prev].slice(0, 18));
-      }
     },
     [activePeriod],
   );
@@ -192,6 +169,8 @@ export function BattleLayout({ data = battleMockData }) {
       }
 
       const data = await res.json();
+      setTopSupporters(Array.isArray(data.topSupporters) ? data.topSupporters : []);
+      setLatestPaidComments(Array.isArray(data.latestPaidComments) ? data.latestPaidComments : []);
       const received = Array.isArray(data.comments) ? data.comments : [];
       nextPageTokenRef.current = data.nextPageToken || '';
       const freshItems = received.filter((item) => {
@@ -231,8 +210,8 @@ export function BattleLayout({ data = battleMockData }) {
   const blueBlasts = comments.filter((comment) => comment.commandCode === '5B').length;
   const redBlasts = comments.filter((comment) => comment.commandCode === '5R').length;
 
-  const latestPaid = paidComments.slice(0, 3);
-  const ranking = toRanking(paidComments);
+  const latestPaid = latestPaidComments;
+  const ranking = topSupporters;
 
   const periodNumber = periodContext.currentPeriodIndex;
   const periodRemain = formatCountdown(periodContext.remainingMs);
@@ -297,10 +276,10 @@ export function BattleLayout({ data = battleMockData }) {
               <div className="fixed-list">
                 {latestPaid.length === 0 ? <p className="muted">No paid comments yet.</p> : null}
                 {latestPaid.map((comment) => (
-                  <p key={comment.id} className="feed-line">
-                    <strong>{comment.user.name}</strong>
-                    <span className="price">{comment.amount}</span>
-                    <span className="ellipsis">{comment.text}</span>
+                  <p key={comment.messageId} className="feed-line">
+                    <strong>{comment.userName}</strong>
+                    <span className="price">{comment.amountLabel}</span>
+                    <span className="ellipsis">{comment.messageText}</span>
                   </p>
                 ))}
               </div>
@@ -311,10 +290,10 @@ export function BattleLayout({ data = battleMockData }) {
               <div className="fixed-list">
                 {ranking.length === 0 ? <p className="muted">No supporters yet.</p> : null}
                 {ranking.map((entry, index) => (
-                  <p key={entry.name} className="rank-line">
+                  <p key={entry.userChannelId} className="rank-line">
                     <strong>#{index + 1}</strong>
-                    <span className="ellipsis">{entry.name}</span>
-                    <span>{entry.points.toLocaleString()} pt</span>
+                    <span className="ellipsis">{entry.userName}</span>
+                    <span>{entry.amountLabel}</span>
                   </p>
                 ))}
               </div>
