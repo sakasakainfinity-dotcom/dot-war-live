@@ -34,10 +34,27 @@ export default function AdminPage() {
   const defaults = useMemo(() => createDefaultLiveSettings(), []);
   const [form, setForm] = useState(defaults);
   const [savedAt, setSavedAt] = useState('');
+  const [videoIdOrUrl, setVideoIdOrUrl] = useState('');
+  const [streamInfo, setStreamInfo] = useState({ current_video_id: '', current_live_chat_id: '', updated_at: null });
+  const [statusMessage, setStatusMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSavingLiveChat, setIsSavingLiveChat] = useState(false);
 
   useEffect(() => {
     setForm(readLiveSettings());
+    loadCurrentStreamInfo();
   }, []);
+
+  const loadCurrentStreamInfo = async () => {
+    setErrorMessage('');
+    const res = await fetch('/api/admin/youtube/current', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setErrorMessage(data.error || '現在の配信設定を取得できませんでした');
+      return;
+    }
+    setStreamInfo(data.current);
+  };
 
   const updatePeriodDefinition = (index, key, value) => {
     setForm((prev) => ({
@@ -56,11 +73,62 @@ export default function AdminPage() {
     setSavedAt(new Date().toLocaleString('ja-JP', { hour12: false }));
   };
 
+  const handleSaveLiveChatId = async () => {
+    setIsSavingLiveChat(true);
+    setStatusMessage('');
+    setErrorMessage('');
+
+    try {
+      const res = await fetch('/api/admin/youtube/set-live-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoIdOrUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErrorMessage(data.error || 'liveChatIdの保存に失敗しました');
+        return;
+      }
+
+      setStatusMessage(`保存しました: videoId=${data.videoId} / liveChatId=${data.liveChatId}`);
+      setVideoIdOrUrl('');
+      await loadCurrentStreamInfo();
+    } catch (error) {
+      setErrorMessage(`liveChatIdの保存に失敗しました: ${error.message}`);
+    } finally {
+      setIsSavingLiveChat(false);
+    }
+  };
+
   return (
     <main className="admin-root">
       <section className="admin-card admin-card-wide">
         <h1>Dot War Live Admin (48 Period Fixed Loop)</h1>
         <p className="admin-help">配信全体設定・6種のperiod定義・AI返信設定を保存すると即時に本番UIへ反映されます。</p>
+
+        <section className="admin-section">
+          <h2>YouTubeライブ連携</h2>
+          <div className="admin-grid-2">
+            <p><strong>現在の動画ID:</strong> {streamInfo.current_video_id || '未設定'}</p>
+            <p><strong>現在のliveChatId:</strong> {streamInfo.current_live_chat_id || '未設定'}</p>
+            <p><strong>最終更新:</strong> {streamInfo.updated_at ? new Date(streamInfo.updated_at).toLocaleString('ja-JP', { hour12: false }) : '未更新'}</p>
+          </div>
+          <label className="admin-field">
+            <span>動画IDまたはYouTubeライブURL</span>
+            <input
+              value={videoIdOrUrl}
+              onChange={(e) => setVideoIdOrUrl(e.target.value)}
+              placeholder="例: NCBNKK-kGZc / https://youtube.com/live/NCBNKK-kGZc"
+            />
+          </label>
+          <div className="admin-actions">
+            <button type="button" onClick={handleSaveLiveChatId} disabled={isSavingLiveChat}>
+              {isSavingLiveChat ? '取得中...' : 'liveChatIdを取得して保存'}
+            </button>
+          </div>
+          {statusMessage ? <p className="admin-success">{statusMessage}</p> : null}
+          {errorMessage ? <p className="admin-error">{errorMessage}</p> : null}
+        </section>
 
         <div className="admin-grid-2">
           <label className="admin-field">
