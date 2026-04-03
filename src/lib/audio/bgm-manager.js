@@ -1,56 +1,71 @@
-import { getBgmTrackForPeriod } from '../game/period-config.js';
+const DEFAULT_FADE_MS = 500;
 
-function devLog(...args) {
-  if (process.env.NODE_ENV !== 'production') console.log(...args);
+function warnLog(...args) {
+  console.warn(...args);
+}
+
+function fadeTo(audio, target, durationMs = DEFAULT_FADE_MS) {
+  if (!audio) return Promise.resolve();
+  const start = audio.volume;
+  const startTime = performance.now();
+  return new Promise((resolve) => {
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startTime) / durationMs);
+      audio.volume = start + (target - start) * progress;
+      if (progress >= 1) return resolve();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
 }
 
 export function createBgmManager(settings) {
   let currentAudio = null;
-  let currentTrackId = '';
+  let currentFilePath = '';
   let muted = false;
   let globalVolume = Number(settings?.bgmConfig?.volume ?? 0.35);
 
-  function fadeTo(audio, target, durationMs = 600) {
-    if (!audio) return Promise.resolve();
-    const start = audio.volume;
-    const startTime = performance.now();
-    return new Promise((resolve) => {
-      const tick = (now) => {
-        const progress = Math.min(1, (now - startTime) / durationMs);
-        audio.volume = start + (target - start) * progress;
-        if (progress >= 1) return resolve();
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    });
-  }
-
-  async function switchPeriodBgm(periodKey, nextSettings = settings) {
-    const track = getBgmTrackForPeriod(periodKey, nextSettings);
-    if (!track) return;
-    if (currentTrackId === track.id && currentAudio) {
-      devLog('[bgm switch skipped same track]', { trackId: track.id });
+  async function switchTrack(filePath, volume = globalVolume, loop = true) {
+    if (!filePath) {
+      warnLog('[bgm] filePath is empty, skip switch');
       return;
     }
 
-    const nextAudio = new Audio(track.filePath);
-    nextAudio.loop = track.loop;
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') {
+      warnLog('[bgm] Audio API is unavailable in this environment');
+      return;
+    }
+
+    if (currentAudio && currentFilePath === filePath) {
+      return;
+    }
+
+    const nextAudio = new Audio(filePath);
+    nextAudio.loop = loop;
     nextAudio.volume = 0;
 
     try {
       await nextAudio.play();
-      devLog('[bgm loaded]', { trackId: track.id, path: track.filePath });
     } catch (error) {
-      devLog('[bgm load failed]', { trackId: track.id, error: error?.message });
+      warnLog('[bgm] failed to play track', { filePath, error: error?.message });
       return;
     }
 
-    const targetVolume = muted ? 0 : Math.max(0, Math.min(1, globalVolume));
-    await Promise.all([fadeTo(nextAudio, targetVolume, 700), fadeTo(currentAudio, 0, 500)]);
-    if (currentAudio) currentAudio.pause();
+    const requestedVolume = Math.max(0, Math.min(1, Number(volume) || 0));
+    const targetVolume = muted ? 0 : requestedVolume;
+    await Promise.all([
+      fadeTo(nextAudio, targetVolume, 500),
+      fadeTo(currentAudio, 0, 400),
+    ]);
+
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+
     currentAudio = nextAudio;
-    currentTrackId = track.id;
-    devLog('[bgm switched]', { trackId: track.id });
+    currentFilePath = filePath;
+    globalVolume = requestedVolume;
   }
 
   function setBgmVolume(volume) {
@@ -68,5 +83,5 @@ export function createBgmManager(settings) {
     if (currentAudio) currentAudio.volume = globalVolume;
   }
 
-  return { switchPeriodBgm, setBgmVolume, muteBgm, unmuteBgm };
+  return { switch: switchTrack, setBgmVolume, muteBgm, unmuteBgm };
 }

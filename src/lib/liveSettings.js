@@ -3,12 +3,12 @@ export const PERIOD_TOTAL_COUNT = 48;
 export const PERIOD_CYCLE_SIZE = 6;
 
 const FIXED_PERIOD_SLOTS = [
-  { slotKey: 'normal_1', periodKey: 'normal', title: 'NORMAL', titleJa: '通常', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。', bgmTrackId: 'normal_1', announcementStyle: 'normal' },
-  { slotKey: 'double_vote', periodKey: 'double_vote', title: 'DOUBLE VOTE', titleJa: 'ダブル投票', descriptionEn: 'Votes count as double.', descriptionJa: '投票が2倍で反映されます。', bgmTrackId: 'double_vote', announcementStyle: 'exciting' },
-  { slotKey: 'central_bonus', periodKey: 'central_bonus', title: 'CENTRAL BONUS', titleJa: '中央ボーナス', descriptionEn: 'Break through the center for bonus points.', descriptionJa: '中央突破でボーナスが入ります。', bgmTrackId: 'central_bonus', announcementStyle: 'tense' },
-  { slotKey: 'normal_2', periodKey: 'normal', title: 'NORMAL', titleJa: '通常', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。', bgmTrackId: 'normal_2', announcementStyle: 'normal' },
-  { slotKey: 'ai_random', periodKey: 'ai_random', title: 'AI RANDOM', titleJa: 'AIランダム', descriptionEn: 'AI may trigger a random event.', descriptionJa: 'AIがランダムイベントを発動します。', bgmTrackId: 'ai_random', announcementStyle: 'exciting' },
-  { slotKey: 'random_bomb', periodKey: 'random_bomb', title: 'RANDOM BOMB', titleJa: 'ランダム爆弾', descriptionEn: 'Bomb comments may blast either side.', descriptionJa: '爆弾コメントでどちらかがランダム爆破されます。', bgmTrackId: 'random_bomb', announcementStyle: 'final' },
+  { slotKey: 'normal_1', periodKey: 'normal', title: 'NORMAL', titleJa: '通常', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。', bgmTrackId: 'normal1', announcementStyle: 'normal' },
+  { slotKey: 'double_vote', periodKey: 'double_vote', title: 'DOUBLE VOTE', titleJa: 'ダブル投票', descriptionEn: 'Votes count as double.', descriptionJa: '投票が2倍で反映されます。', bgmTrackId: 'double', announcementStyle: 'exciting' },
+  { slotKey: 'central_bonus', periodKey: 'central_bonus', title: 'CENTRAL BONUS', titleJa: '中央ボーナス', descriptionEn: 'Break through the center for bonus points.', descriptionJa: '中央突破でボーナスが入ります。', bgmTrackId: 'bonus', announcementStyle: 'tense' },
+  { slotKey: 'normal_2', periodKey: 'normal', title: 'NORMAL', titleJa: '通常', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。', bgmTrackId: 'normal2', announcementStyle: 'normal' },
+  { slotKey: 'ai_random', periodKey: 'ai_random', title: 'AI RANDOM', titleJa: 'AIランダム', descriptionEn: 'AI may trigger a random event.', descriptionJa: 'AIがランダムイベントを発動します。', bgmTrackId: 'random', announcementStyle: 'exciting' },
+  { slotKey: 'random_bomb', periodKey: 'random_bomb', title: 'RANDOM BOMB', titleJa: 'ランダム爆弾', descriptionEn: 'Bomb comments may blast either side.', descriptionJa: '爆弾コメントでどちらかがランダム爆破されます。', bgmTrackId: 'bomb', announcementStyle: 'final' },
 ];
 
 function startOfNextHour() {
