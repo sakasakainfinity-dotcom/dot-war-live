@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkAdminRequest } from '../../../../../lib/server/adminAuth';
 import { upsertCurrentStreamSettings } from '../../../../../lib/server/streamSettingsStore';
-import { extractYoutubeVideoId } from '../../../../../lib/youtubeVideoId';
 
 export async function POST(request) {
   const auth = checkAdminRequest(request);
@@ -14,13 +13,63 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: 'YouTube APIキーが未設定です' }, { status: 500 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const parsed = extractYoutubeVideoId(body.videoIdOrUrl);
-  if (!parsed.ok) {
-    return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 });
+  console.log('ENV CHECK', {
+    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VERCEL_ENV: process.env.VERCEL_ENV
+  });
+
+  const missingSupabaseEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((name) => !process.env[name]);
+  if (missingSupabaseEnv.length > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Supabase環境変数が未設定です (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY を使用)',
+        debug: {
+          missingEnv: missingSupabaseEnv
+        }
+      },
+      { status: 500 }
+    );
   }
 
-  const videoId = parsed.videoId;
+  const body = await request.json().catch(() => ({}));
+  const videoIdOrUrl = `${body.videoIdOrUrl ?? ''}`;
+  let videoId = videoIdOrUrl.trim();
+
+  const liveMatch = videoId.match(/youtube\.com\/live\/([a-zA-Z0-9_-]+)/);
+  const watchMatch = videoId.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+  const studioMatch = videoId.match(/studio\.youtube\.com\/video\/([a-zA-Z0-9_-]+)/);
+  const plainMatch = videoId.match(/^[a-zA-Z0-9_-]{11}$/);
+
+  console.log('受信した入力:', videoIdOrUrl);
+  console.log('liveMatch:', liveMatch);
+  console.log('watchMatch:', watchMatch);
+  console.log('studioMatch:', studioMatch);
+
+  if (liveMatch) {
+    videoId = liveMatch[1];
+  } else if (watchMatch) {
+    videoId = watchMatch[1];
+  } else if (studioMatch) {
+    videoId = studioMatch[1];
+  } else if (plainMatch) {
+    videoId = plainMatch[0];
+  } else {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'YouTube動画IDを抽出できませんでした',
+        debug: {
+          input: videoIdOrUrl
+        }
+      },
+      { status: 400 }
+    );
+  }
+  console.log('最終videoId:', videoId);
   const endpoint = new URL('https://www.googleapis.com/youtube/v3/videos');
   endpoint.searchParams.set('part', 'liveStreamingDetails');
   endpoint.searchParams.set('id', videoId);
