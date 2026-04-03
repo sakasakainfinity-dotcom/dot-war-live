@@ -13,6 +13,28 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: 'YouTube APIキーが未設定です' }, { status: 500 });
   }
 
+  console.log('ENV CHECK', {
+    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VERCEL_ENV: process.env.VERCEL_ENV
+  });
+
+  const missingSupabaseEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((name) => !process.env[name]);
+  if (missingSupabaseEnv.length > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Supabase環境変数が未設定です (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY を使用)',
+        debug: {
+          missingEnv: missingSupabaseEnv
+        }
+      },
+      { status: 500 }
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const videoIdOrUrl = `${body.videoIdOrUrl ?? ''}`;
   let videoId = videoIdOrUrl.trim();
