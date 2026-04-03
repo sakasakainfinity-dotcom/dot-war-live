@@ -139,6 +139,13 @@ export function BattleLayout() {
     }
   }, [activePeriod?.id, totalBalance]);
 
+  const grid = useMemo(() => buildFrontlineGrid(Math.floor(totalBalance)), [totalBalance]);
+  const liveBlueCells = useMemo(() => grid.flat().filter((cell) => cell === 'blue').length, [grid]);
+  const liveRedCells = BOARD_ROWS * BOARD_COLS - liveBlueCells;
+  const committedGrid = useMemo(() => buildFrontlineGrid(Math.floor(periodCommittedBalance)), [periodCommittedBalance]);
+  const blueCells = useMemo(() => committedGrid.flat().filter((cell) => cell === 'blue').length, [committedGrid]);
+  const redCells = BOARD_ROWS * BOARD_COLS - blueCells;
+
   const processAiReaction = useCallback(async (item) => {
     if (!settings.aiReplyEnabled) return;
     if (!item?.text) return;
@@ -350,13 +357,6 @@ export function BattleLayout() {
     }, 5000);
     return () => clearInterval(timer);
   }, [activePeriod?.descriptionEn, activePeriod?.descriptionJa, activePeriod?.periodKey, activePeriod?.title, activePeriod?.titleJa, blueCells, redCells, settings.announcementConfig?.enabled, settings.announcementConfig?.intervalSec, settings.announcementConfig?.languageMode, settings.announcementConfig?.minCooldownSec, settings.autoAnnouncementEnabled, settings.teamA_en, settings.teamA_ja, settings.teamB_en, settings.teamB_ja]);
-
-  const grid = useMemo(() => buildFrontlineGrid(Math.floor(totalBalance)), [totalBalance]);
-  const liveBlueCells = useMemo(() => grid.flat().filter((cell) => cell === 'blue').length, [grid]);
-  const liveRedCells = BOARD_ROWS * BOARD_COLS - liveBlueCells;
-  const committedGrid = useMemo(() => buildFrontlineGrid(Math.floor(periodCommittedBalance)), [periodCommittedBalance]);
-  const blueCells = useMemo(() => committedGrid.flat().filter((cell) => cell === 'blue').length, [committedGrid]);
-  const redCells = BOARD_ROWS * BOARD_COLS - blueCells;
 
   const blueVotes = comments.filter((comment) => ['B', '3B', '5B'].includes(comment.commandCode)).length;
   const redVotes = comments.filter((comment) => ['R', '3R', '5R'].includes(comment.commandCode)).length;

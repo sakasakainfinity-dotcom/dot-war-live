@@ -28,21 +28,28 @@ export async function generateAiCommentReaction(input) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { skipped: true, reason: 'missing_api_key' };
 
-  const { default: OpenAI } = await import('openai');
-  const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_MODEL_TEXT || DEFAULT_TEXT_MODEL;
   const systemPrompt = input.language === 'ja' ? JA_REACTION_SYSTEM_PROMPT : EN_REACTION_SYSTEM_PROMPT;
-  const response = await client.responses.create({
-    model,
-    temperature: 0.9,
-    max_output_tokens: 80,
-    input: [
-      { role: 'system', content: [{ type: 'input_text', text: systemPrompt }] },
-      { role: 'user', content: [{ type: 'input_text', text: buildReactionUserPrompt(input) }] },
-    ],
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.9,
+      max_output_tokens: 80,
+      input: [
+        { role: 'system', content: [{ type: 'input_text', text: systemPrompt }] },
+        { role: 'user', content: [{ type: 'input_text', text: buildReactionUserPrompt(input) }] },
+      ],
+    }),
   });
+  if (!response.ok) return { skipped: true, reason: `openai_failed_${response.status}` };
+  const data = await response.json();
 
-  const rawText = response.output_text || '';
+  const rawText = data.output_text || '';
   const sanitized = trimByLanguage(sanitizeSingleSentence(rawText), input.language);
   if (!sanitized) return { skipped: true, reason: 'empty_response' };
 
