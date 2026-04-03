@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { savePaidEvents, readPaidEventSummary } from '../../../../lib/server/paidEventsStore';
 import { readCurrentStreamSettings } from '../../../../lib/server/streamSettingsStore';
+import { detectCommandCode } from '../../../../lib/youtubeVoteParser';
 
 function normalizeYouTubeItem(item) {
   const snippet = item?.snippet || {};
@@ -26,17 +27,6 @@ function normalizeYouTubeItem(item) {
     amountNumeric,
     amount,
   };
-}
-
-function detectCommandCode(text = '', isSuperChat = false, amount = '') {
-  const upper = text.toUpperCase();
-  const team = upper.includes('R') ? 'R' : upper.includes('B') ? 'B' : '';
-  if (!team) return '';
-  if (!isSuperChat) return team;
-
-  if (/(^|\D)(5|500)(\D|$)/.test(text) || /\b5(\.0+)?\b/.test(amount)) return `5${team}`;
-  if (/(^|\D)(3|300)(\D|$)/.test(text) || /\b3(\.0+)?\b/.test(amount)) return `3${team}`;
-  return team;
 }
 
 function parseAction(commandCode) {
@@ -81,7 +71,19 @@ export async function GET(request) {
 
   const data = await ytRes.json();
   const allItems = (data.items || []).map(normalizeYouTubeItem);
-  const enrichedItems = allItems.map((item) => ({ ...item, commandCode: detectCommandCode(item.text, item.isSuperChat, item.amount) }));
+  const enrichedItems = allItems.map((item) => {
+    const detection = detectCommandCode(item);
+    if (detection.ignoreReason) {
+      console.log('[youtube:ignored-comment]', {
+        rawText: item.text,
+        normalizedText: detection.normalizedText,
+        authorChannelId: item.user.id,
+        messageId: item.id,
+        ignoreReason: detection.ignoreReason,
+      });
+    }
+    return { ...item, commandCode: detection.commandCode };
+  });
   const commandItems = enrichedItems.filter((item) => item.commandCode);
 
   const paidEvents = enrichedItems
