@@ -287,7 +287,7 @@ export function BattleLayout() {
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
-            <p className="live-balance-note">Live front: B {liveBlueCells} / R {liveRedCells} (gauge reflects on period end)</p>
+            <p className="live-balance-note">{boardUpdateNotice} ・ Live front: B {liveBlueCells} / R {liveRedCells} (gauge reflects on period end)</p>
           </section>
 
           <aside className="panel side-tank side-tank-red">
