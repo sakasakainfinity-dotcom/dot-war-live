@@ -101,10 +101,6 @@ export function BattleLayout() {
   const lastAiReactionAtRef = useRef(0);
   const lastMeaningfulCommentAtRef = useRef(0);
   const periodStartedAtRef = useRef(Date.now());
-  const [debugAiQueueSize, setDebugAiQueueSize] = useState(0);
-  const [debugAnnouncementQueueSize, setDebugAnnouncementQueueSize] = useState(0);
-  const [lastAiReaction, setLastAiReaction] = useState(null);
-  const [lastAnnouncement, setLastAnnouncement] = useState(null);
 
   useEffect(() => {
     const tick = setInterval(() => setNowMs(Date.now()), 1000);
@@ -194,10 +190,8 @@ export function BattleLayout() {
     const data = await res.json();
     if (data.skipped || !data.result) return;
     aiQueueRef.current.enqueueAiReaction(data.result);
-    setDebugAiQueueSize(aiQueueRef.current.size);
     const next = aiQueueRef.current.getNextAiReactionToPlay();
     if (next) {
-      setLastAiReaction(next);
       lastAiReactionAtRef.current = Date.now();
       if (process.env.NODE_ENV !== 'production') console.log('[AI generation success]', { messageId: item.id, reply: next.replyText });
       if (process.env.NODE_ENV !== 'production') console.log('[queued]', { queueSize: aiQueueRef.current.size });
@@ -347,10 +341,8 @@ export function BattleLayout() {
       const category = announcementQueueRef.current.getNextCategory();
       const message = buildAnnouncementMessage(ctx, language, category);
       announcementQueueRef.current.enqueueAnnouncement(message);
-      setDebugAnnouncementQueueSize(announcementQueueRef.current.size);
       const next = announcementQueueRef.current.getNextAnnouncementToPlay();
       if (next) {
-        setLastAnnouncement(next);
         if (process.env.NODE_ENV !== 'production') console.log('[announcement queued]', next);
         if (process.env.NODE_ENV !== 'production') console.log('[announcement played]', next.id);
       }
@@ -428,11 +420,6 @@ export function BattleLayout() {
         </section>
 
         <div className="center-lane">
-          <section className="panel vote-note" style={{ marginBottom: 8 }}>
-            <p>AI Reaction Queue: {debugAiQueueSize} / Announcement Queue: {debugAnnouncementQueueSize}</p>
-            {lastAiReaction ? <p className="vote-en">AI: {lastAiReaction.replyText}</p> : null}
-            {lastAnnouncement ? <p className="vote-ja">Announce ({lastAnnouncement.language}): {lastAnnouncement.text}</p> : null}
-          </section>
           <section className="info-row">
             <article className="panel paid-panel">
               <h3>LATEST PAID COMMENTS</h3>
