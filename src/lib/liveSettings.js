@@ -3,12 +3,12 @@ export const PERIOD_TOTAL_COUNT = 48;
 export const PERIOD_CYCLE_SIZE = 6;
 
 const FIXED_PERIOD_SLOTS = [
-  { slotKey: 'normal_1', periodKey: 'normal', title: 'NORMAL', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。' },
-  { slotKey: 'double_vote', periodKey: 'double_vote', title: 'DOUBLE VOTE', descriptionEn: 'Votes count as double.', descriptionJa: '投票が2倍で反映されます。' },
-  { slotKey: 'central_bonus', periodKey: 'central_bonus', title: 'CENTRAL BONUS', descriptionEn: 'Break through the center for bonus points.', descriptionJa: '中央突破でボーナスが入ります。' },
-  { slotKey: 'normal_2', periodKey: 'normal', title: 'NORMAL', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。' },
-  { slotKey: 'ai_random', periodKey: 'ai_random', title: 'AI RANDOM', descriptionEn: 'AI may trigger a random event.', descriptionJa: 'AIがランダムイベントを発動します。' },
-  { slotKey: 'random_bomb', periodKey: 'random_bomb', title: 'RANDOM BOMB', descriptionEn: 'Bomb comments may blast either side.', descriptionJa: '爆弾コメントでどちらかがランダム爆破されます。' },
+  { slotKey: 'normal_1', periodKey: 'normal', title: 'NORMAL', titleJa: '通常', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。', bgmTrackId: 'normal_1', announcementStyle: 'normal' },
+  { slotKey: 'double_vote', periodKey: 'double_vote', title: 'DOUBLE VOTE', titleJa: 'ダブル投票', descriptionEn: 'Votes count as double.', descriptionJa: '投票が2倍で反映されます。', bgmTrackId: 'double_vote', announcementStyle: 'exciting' },
+  { slotKey: 'central_bonus', periodKey: 'central_bonus', title: 'CENTRAL BONUS', titleJa: '中央ボーナス', descriptionEn: 'Break through the center for bonus points.', descriptionJa: '中央突破でボーナスが入ります。', bgmTrackId: 'central_bonus', announcementStyle: 'tense' },
+  { slotKey: 'normal_2', periodKey: 'normal', title: 'NORMAL', titleJa: '通常', descriptionEn: 'Standard battle rules.', descriptionJa: '通常ルールのバトルです。', bgmTrackId: 'normal_2', announcementStyle: 'normal' },
+  { slotKey: 'ai_random', periodKey: 'ai_random', title: 'AI RANDOM', titleJa: 'AIランダム', descriptionEn: 'AI may trigger a random event.', descriptionJa: 'AIがランダムイベントを発動します。', bgmTrackId: 'ai_random', announcementStyle: 'exciting' },
+  { slotKey: 'random_bomb', periodKey: 'random_bomb', title: 'RANDOM BOMB', titleJa: 'ランダム爆弾', descriptionEn: 'Bomb comments may blast either side.', descriptionJa: '爆弾コメントでどちらかがランダム爆破されます。', bgmTrackId: 'random_bomb', announcementStyle: 'final' },
 ];
 
 function startOfNextHour() {
@@ -32,6 +32,7 @@ export function createDefaultLiveSettings() {
     startAt: startAt.toISOString(),
     endAt: endAt.toISOString(),
     autoNarrationEnabled: true,
+    autoAnnouncementEnabled: true,
     aiReplyEnabled: true,
     voiceReplyEnabled: true,
     autoPostXEnabled: false,
@@ -48,6 +49,17 @@ export function createDefaultLiveSettings() {
       funnyPriority: 10,
       voiceIntervalMs: 35000,
     },
+    announcementConfig: {
+      enabled: true,
+      intervalSec: 60,
+      minCooldownSec: 50,
+      languageMode: 'ja_en_alternate',
+    },
+    bgmConfig: {
+      enabled: true,
+      muted: false,
+      volume: 0.35,
+    },
     voiceConfig: {
       enabled: true,
       speed: 1,
@@ -60,8 +72,11 @@ export function createDefaultLiveSettings() {
       slotIndex: index,
       periodKey: slot.periodKey,
       title: slot.title,
+      titleJa: slot.titleJa,
       descriptionEn: slot.descriptionEn,
       descriptionJa: slot.descriptionJa,
+      bgmTrackId: slot.bgmTrackId,
+      announcementStyle: slot.announcementStyle,
       enabled: true,
     })),
   };
@@ -89,8 +104,11 @@ function normalizePeriodDefinition(rawDefinition, fallbackDefinition, index) {
     slotIndex: index,
     periodKey: fallbackDefinition.periodKey,
     title: `${rawDefinition?.title ?? fallbackDefinition.title}`.trim() || fallbackDefinition.title,
+    titleJa: `${rawDefinition?.titleJa ?? fallbackDefinition.titleJa ?? fallbackDefinition.title}`.trim() || fallbackDefinition.title,
     descriptionEn: `${rawDefinition?.descriptionEn ?? fallbackDefinition.descriptionEn}`.trim() || fallbackDefinition.descriptionEn,
     descriptionJa: `${rawDefinition?.descriptionJa ?? fallbackDefinition.descriptionJa}`.trim() || fallbackDefinition.descriptionJa,
+    bgmTrackId: `${rawDefinition?.bgmTrackId ?? fallbackDefinition.bgmTrackId ?? fallbackDefinition.id}`.trim() || fallbackDefinition.id,
+    announcementStyle: `${rawDefinition?.announcementStyle ?? fallbackDefinition.announcementStyle ?? 'normal'}`.trim() || 'normal',
     enabled: normalizeBoolean(rawDefinition?.enabled, true),
   };
 }
@@ -119,6 +137,7 @@ export function normalizeLiveSettings(raw) {
     startAt,
     endAt,
     autoNarrationEnabled: normalizeBoolean(raw?.autoNarrationEnabled, fallback.autoNarrationEnabled),
+    autoAnnouncementEnabled: normalizeBoolean(raw?.autoAnnouncementEnabled, fallback.autoAnnouncementEnabled),
     aiReplyEnabled: normalizeBoolean(raw?.aiReplyEnabled, fallback.aiReplyEnabled),
     voiceReplyEnabled: normalizeBoolean(raw?.voiceReplyEnabled, fallback.voiceReplyEnabled),
     autoPostXEnabled: normalizeBoolean(raw?.autoPostXEnabled, fallback.autoPostXEnabled),
@@ -135,6 +154,17 @@ export function normalizeLiveSettings(raw) {
       funnyPriority: normalizeNumber(raw?.replyConfig?.funnyPriority, fallback.replyConfig.funnyPriority, 0, 100),
       voiceIntervalMs: normalizeNumber(raw?.replyConfig?.voiceIntervalMs, fallback.replyConfig.voiceIntervalMs, 5000, 120000),
     },
+    announcementConfig: {
+      enabled: normalizeBoolean(raw?.announcementConfig?.enabled, fallback.announcementConfig.enabled),
+      intervalSec: normalizeNumber(raw?.announcementConfig?.intervalSec, fallback.announcementConfig.intervalSec, 30, 180),
+      minCooldownSec: normalizeNumber(raw?.announcementConfig?.minCooldownSec, fallback.announcementConfig.minCooldownSec, 30, 180),
+      languageMode: ['ja_only', 'en_only', 'ja_en_alternate', 'ja_then_en_same_message'].includes(raw?.announcementConfig?.languageMode) ? raw.announcementConfig.languageMode : fallback.announcementConfig.languageMode,
+    },
+    bgmConfig: {
+      enabled: normalizeBoolean(raw?.bgmConfig?.enabled, fallback.bgmConfig.enabled),
+      muted: normalizeBoolean(raw?.bgmConfig?.muted, fallback.bgmConfig.muted),
+      volume: normalizeNumber(raw?.bgmConfig?.volume, fallback.bgmConfig.volume, 0, 1, 2),
+    },
     voiceConfig: {
       enabled: normalizeBoolean(raw?.voiceConfig?.enabled, fallback.voiceConfig.enabled),
       speed: normalizeNumber(raw?.voiceConfig?.speed, fallback.voiceConfig.speed, 0.6, 1.5, 2),
@@ -147,10 +177,7 @@ export function normalizeLiveSettings(raw) {
 }
 
 export function readLiveSettings() {
-  if (typeof window === 'undefined') {
-    return createDefaultLiveSettings();
-  }
-
+  if (typeof window === 'undefined') return createDefaultLiveSettings();
   const stored = window.localStorage.getItem(LIVE_SETTINGS_STORAGE_KEY);
   if (!stored) {
     const defaults = createDefaultLiveSettings();
@@ -159,8 +186,7 @@ export function readLiveSettings() {
   }
 
   try {
-    const parsed = JSON.parse(stored);
-    return normalizeLiveSettings(parsed);
+    return normalizeLiveSettings(JSON.parse(stored));
   } catch {
     const defaults = createDefaultLiveSettings();
     window.localStorage.setItem(LIVE_SETTINGS_STORAGE_KEY, JSON.stringify(defaults));
@@ -178,8 +204,7 @@ export function writeLiveSettings(nextSettings) {
 function getPeriodDurationMs(settings) {
   const startMs = new Date(settings?.startAt).getTime();
   const endMs = new Date(settings?.endAt).getTime();
-  const totalDurationMs = Math.max(1, endMs - startMs);
-  return Math.floor(totalDurationMs / PERIOD_TOTAL_COUNT);
+  return Math.floor(Math.max(1, endMs - startMs) / PERIOD_TOTAL_COUNT);
 }
 
 function makePeriodInstance(definition, periodIndex, periodStartMs, periodEndMs) {
@@ -189,8 +214,11 @@ function makePeriodInstance(definition, periodIndex, periodStartMs, periodEndMs)
     slotIndex: (periodIndex - 1) % PERIOD_CYCLE_SIZE,
     periodKey: definition.periodKey,
     title: definition.title,
+    titleJa: definition.titleJa || definition.title,
     descriptionEn: definition.descriptionEn,
     descriptionJa: definition.descriptionJa,
+    bgmTrackId: definition.bgmTrackId || definition.id,
+    announcementStyle: definition.announcementStyle || 'normal',
     enabled: definition.enabled,
     startAt: new Date(periodStartMs).toISOString(),
     endAt: new Date(periodEndMs).toISOString(),
@@ -199,7 +227,6 @@ function makePeriodInstance(definition, periodIndex, periodStartMs, periodEndMs)
 
 export function getPeriodContext(settings, nowMs = Date.now()) {
   const safeSettings = normalizeLiveSettings(settings);
-  const definitions = safeSettings.periodDefinitions;
   const startMs = new Date(safeSettings.startAt).getTime();
   const durationMs = getPeriodDurationMs(safeSettings);
 
@@ -208,10 +235,8 @@ export function getPeriodContext(settings, nowMs = Date.now()) {
   const currentPeriodIndex = Math.max(1, Math.min(PERIOD_TOTAL_COUNT, rawIndex));
   const nextPeriodIndex = currentPeriodIndex === PERIOD_TOTAL_COUNT ? 1 : currentPeriodIndex + 1;
 
-  const currentSlotIndex = (currentPeriodIndex - 1) % PERIOD_CYCLE_SIZE;
-  const nextSlotIndex = (nextPeriodIndex - 1) % PERIOD_CYCLE_SIZE;
-  const currentDef = definitions[currentSlotIndex];
-  const nextDef = definitions[nextSlotIndex];
+  const currentDef = safeSettings.periodDefinitions[(currentPeriodIndex - 1) % PERIOD_CYCLE_SIZE];
+  const nextDef = safeSettings.periodDefinitions[(nextPeriodIndex - 1) % PERIOD_CYCLE_SIZE];
 
   const currentStartMs = startMs + (currentPeriodIndex - 1) * durationMs;
   const currentEndMs = currentStartMs + durationMs;
@@ -227,10 +252,5 @@ export function getPeriodContext(settings, nowMs = Date.now()) {
   };
 }
 
-export function getActivePeriod(settings, nowMs = Date.now()) {
-  return getPeriodContext(settings, nowMs).current;
-}
-
-export function getNextPeriod(settings, nowMs = Date.now()) {
-  return getPeriodContext(settings, nowMs).next;
-}
+export const getActivePeriod = (settings, nowMs = Date.now()) => getPeriodContext(settings, nowMs).current;
+export const getNextPeriod = (settings, nowMs = Date.now()) => getPeriodContext(settings, nowMs).next;

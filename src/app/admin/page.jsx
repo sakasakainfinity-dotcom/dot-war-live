@@ -65,6 +65,8 @@ export default function AdminPage() {
 
   const updateReplyConfig = (key, value) => setForm((prev) => ({ ...prev, replyConfig: { ...prev.replyConfig, [key]: value } }));
   const updateVoiceConfig = (key, value) => setForm((prev) => ({ ...prev, voiceConfig: { ...prev.voiceConfig, [key]: value } }));
+  const updateAnnouncementConfig = (key, value) => setForm((prev) => ({ ...prev, announcementConfig: { ...prev.announcementConfig, [key]: value } }));
+  const updateBgmConfig = (key, value) => setForm((prev) => ({ ...prev, bgmConfig: { ...prev.bgmConfig, [key]: value } }));
 
   const handleSave = () => {
     const normalized = normalizeLiveSettings(form);
@@ -180,11 +182,39 @@ export default function AdminPage() {
 
         <div className="admin-toggle-grid">
           <BoolField label="自動実況ON" value={form.autoNarrationEnabled} onChange={(v) => setForm((p) => ({ ...p, autoNarrationEnabled: v }))} />
+          <BoolField label="自動アナウンスON" value={form.autoAnnouncementEnabled} onChange={(v) => setForm((p) => ({ ...p, autoAnnouncementEnabled: v }))} />
           <BoolField label="AI返信ON" value={form.aiReplyEnabled} onChange={(v) => setForm((p) => ({ ...p, aiReplyEnabled: v }))} />
           <BoolField label="音声返信ON" value={form.voiceReplyEnabled} onChange={(v) => setForm((p) => ({ ...p, voiceReplyEnabled: v }))} />
+          <BoolField label="BGM ON" value={form.bgmConfig.enabled} onChange={(v) => updateBgmConfig('enabled', v)} />
+          <BoolField label="BGM Mute" value={form.bgmConfig.muted} onChange={(v) => updateBgmConfig('muted', v)} />
           <BoolField label="X自動投稿ON" value={form.autoPostXEnabled} onChange={(v) => setForm((p) => ({ ...p, autoPostXEnabled: v }))} />
           <BoolField label="Threads自動投稿ON" value={form.autoPostThreadsEnabled} onChange={(v) => setForm((p) => ({ ...p, autoPostThreadsEnabled: v }))} />
         </div>
+
+        <section className="admin-section">
+          <h2>自動アナウンス設定</h2>
+          <div className="admin-grid-3">
+            <BoolField label="有効" value={form.announcementConfig.enabled} onChange={(v) => updateAnnouncementConfig('enabled', v)} />
+            <label className="admin-field"><span>間隔(秒)</span><input type="number" value={form.announcementConfig.intervalSec} onChange={(e) => updateAnnouncementConfig('intervalSec', e.target.value)} /></label>
+            <label className="admin-field"><span>最小CD(秒)</span><input type="number" value={form.announcementConfig.minCooldownSec} onChange={(e) => updateAnnouncementConfig('minCooldownSec', e.target.value)} /></label>
+            <label className="admin-field">
+              <span>言語モード</span>
+              <select value={form.announcementConfig.languageMode} onChange={(e) => updateAnnouncementConfig('languageMode', e.target.value)}>
+                <option value="ja_en_alternate">ja_en_alternate</option>
+                <option value="ja_only">ja_only</option>
+                <option value="en_only">en_only</option>
+                <option value="ja_then_en_same_message">ja_then_en_same_message</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section className="admin-section">
+          <h2>BGM設定</h2>
+          <div className="admin-grid-3">
+            <label className="admin-field"><span>BGM音量(0-1)</span><input type="number" step="0.01" value={form.bgmConfig.volume} onChange={(e) => updateBgmConfig('volume', e.target.value)} /></label>
+          </div>
+        </section>
 
         <section className="admin-section">
           <h2>コメント返信設定</h2>
@@ -229,10 +259,13 @@ export default function AdminPage() {
                 <div className="admin-grid-3">
                   <label className="admin-field"><span>period key</span><input value={period.periodKey} disabled /></label>
                   <label className="admin-field"><span>period title (EN)</span><input value={period.title} onChange={(e) => updatePeriodDefinition(index, 'title', e.target.value)} /></label>
+                  <label className="admin-field"><span>period title (JA)</span><input value={period.titleJa || ''} onChange={(e) => updatePeriodDefinition(index, 'titleJa', e.target.value)} /></label>
                   <BoolField label="enabled" value={period.enabled} onChange={(v) => updatePeriodDefinition(index, 'enabled', v)} />
                 </div>
                 <label className="admin-field"><span>short description en</span><input value={period.descriptionEn} onChange={(e) => updatePeriodDefinition(index, 'descriptionEn', e.target.value)} /></label>
                 <label className="admin-field"><span>short description ja</span><input value={period.descriptionJa} onChange={(e) => updatePeriodDefinition(index, 'descriptionJa', e.target.value)} /></label>
+                <label className="admin-field"><span>bgm track id</span><input value={period.bgmTrackId || ''} onChange={(e) => updatePeriodDefinition(index, 'bgmTrackId', e.target.value)} /></label>
+                <label className="admin-field"><span>announcement style</span><input value={period.announcementStyle || ''} onChange={(e) => updatePeriodDefinition(index, 'announcementStyle', e.target.value)} /></label>
               </div>
             ))}
           </div>

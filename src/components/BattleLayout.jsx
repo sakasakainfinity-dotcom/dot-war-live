@@ -3,8 +3,14 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getPeriodContext, readLiveSettings } from '../lib/liveSettings';
+import { detectCommentLanguage } from '../lib/ai/comment-language';
+import { shouldUseCommentForAiReaction } from '../lib/ai/comment-filter';
+import { createAiReactionQueue } from '../lib/ai/comment-reaction-queue';
+import { buildAnnouncementContext, buildAnnouncementMessage } from '../lib/announcer/announcement-service';
+import { createAnnouncementQueue, shouldScheduleAutoAnnouncement } from '../lib/announcer/announcement-scheduler';
 import { BattleGrid } from './BattleGrid';
 import { CommandBar } from './CommandGuideDock';
+import { BgmController } from './overlay/BgmController';
 
 const BOARD_ROWS = 10;
 const BOARD_COLS = 20;
@@ -90,6 +96,15 @@ export function BattleLayout() {
   const activePeriodRef = useRef(null);
   const nextPageTokenRef = useRef('');
   const seenMessageIdsRef = useRef(new Set());
+  const aiQueueRef = useRef(createAiReactionQueue());
+  const announcementQueueRef = useRef(createAnnouncementQueue());
+  const lastAiReactionAtRef = useRef(0);
+  const lastMeaningfulCommentAtRef = useRef(0);
+  const periodStartedAtRef = useRef(Date.now());
+  const [debugAiQueueSize, setDebugAiQueueSize] = useState(0);
+  const [debugAnnouncementQueueSize, setDebugAnnouncementQueueSize] = useState(0);
+  const [lastAiReaction, setLastAiReaction] = useState(null);
+  const [lastAnnouncement, setLastAnnouncement] = useState(null);
 
   useEffect(() => {
     const tick = setInterval(() => setNowMs(Date.now()), 1000);
@@ -120,8 +135,67 @@ export function BattleLayout() {
     if (activePeriodRef.current !== currentPeriodId) {
       setPeriodCommittedBalance(Math.floor(totalBalance));
       activePeriodRef.current = currentPeriodId;
+      periodStartedAtRef.current = Date.now();
     }
   }, [activePeriod?.id, totalBalance]);
+
+  const processAiReaction = useCallback(async (item) => {
+    if (!settings.aiReplyEnabled) return;
+    if (!item?.text) return;
+
+    if (process.env.NODE_ENV !== 'production') console.log('[comment received]', { id: item.id, text: item.text });
+    const detectedLanguage = detectCommentLanguage(item.text);
+    if (process.env.NODE_ENV !== 'production') console.log('[language detected]', { messageId: item.id, detectedLanguage });
+
+    const filterResult = shouldUseCommentForAiReaction(
+      { ...item, userId: item?.user?.id },
+      aiQueueRef.current.getFilterContext(),
+    );
+
+    if (!filterResult.ok) {
+      if (process.env.NODE_ENV !== 'production') console.log('[skipped reason]', { messageId: item.id, reason: filterResult.reason });
+      return;
+    }
+
+    aiQueueRef.current.markAccepted({
+      userId: item?.user?.id || 'unknown',
+      normalizedText: filterResult.normalizedText,
+    });
+
+    if (process.env.NODE_ENV !== 'production') console.log('[AI generation start]', { messageId: item.id });
+    const res = await fetch('/api/ai/comment-reaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messageId: item.id,
+        userId: item?.user?.id || 'unknown',
+        userName: item?.user?.name || 'viewer',
+        commentText: item.text,
+        language: filterResult.detectedLanguage,
+        redScore: redCells,
+        blueScore: blueCells,
+        periodTitle: activePeriod?.title || 'NORMAL',
+        topicTitle: `${settings.teamA_en} vs ${settings.teamB_en}`,
+      }),
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      if (process.env.NODE_ENV !== 'production') console.log('[generation failed]', { messageId: item.id });
+      return;
+    }
+
+    const data = await res.json();
+    if (data.skipped || !data.result) return;
+    aiQueueRef.current.enqueueAiReaction(data.result);
+    setDebugAiQueueSize(aiQueueRef.current.size);
+    const next = aiQueueRef.current.getNextAiReactionToPlay();
+    if (next) {
+      setLastAiReaction(next);
+      lastAiReactionAtRef.current = Date.now();
+      if (process.env.NODE_ENV !== 'production') console.log('[AI generation success]', { messageId: item.id, reply: next.replyText });
+      if (process.env.NODE_ENV !== 'production') console.log('[queued]', { queueSize: aiQueueRef.current.size });
+    }
+  }, [activePeriod?.title, blueCells, redCells, settings.aiReplyEnabled, settings.teamA_en, settings.teamB_en]);
 
   const applyCommand = useCallback(
     ({ commandCode, user, text, amount = '', messageId = '', authorChannelId = '' }) => {
@@ -217,6 +291,10 @@ export function BattleLayout() {
           messageId: item.id,
           authorChannelId: item?.user?.id || '',
         });
+        if ((item.text || '').replace(/\s+/g, '').length >= 10 && !item.commandCode) {
+          lastMeaningfulCommentAtRef.current = Date.now();
+        }
+        processAiReaction(item);
       });
 
       timer = setTimeout(poll, Number(data.pollingIntervalMs) || 5000);
@@ -227,7 +305,51 @@ export function BattleLayout() {
       active = false;
       clearTimeout(timer);
     };
-  }, [applyCommand]);
+  }, [applyCommand, processAiReaction]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!settings.autoAnnouncementEnabled || !settings.announcementConfig?.enabled) return;
+      const scheduleCheck = shouldScheduleAutoAnnouncement({}, {
+        enabled: true,
+        nowMs: Date.now(),
+        lastMeaningfulCommentAtMs: lastMeaningfulCommentAtRef.current,
+        lastAiReactionAtMs: lastAiReactionAtRef.current,
+        lastAnnouncementAtMs: announcementQueueRef.current.lastAnnouncementAtMs,
+        announcementCooldownMs: (settings.announcementConfig?.minCooldownSec || 50) * 1000,
+        idleThresholdMs: (settings.announcementConfig?.intervalSec || 60) * 1000,
+        periodStartedAtMs: periodStartedAtRef.current,
+      });
+      if (!scheduleCheck.ok) {
+        if (process.env.NODE_ENV !== 'production') console.log('[announcement skipped reason]', scheduleCheck.reason);
+        return;
+      }
+      if (process.env.NODE_ENV !== 'production') console.log('[announcement scheduled]', { period: activePeriod?.periodKey });
+      const ctx = buildAnnouncementContext({
+        topicTitleJa: `${settings.teamA_ja} vs ${settings.teamB_ja}`,
+        topicTitleEn: `${settings.teamA_en} vs ${settings.teamB_en}`,
+        currentPeriodKey: activePeriod?.periodKey,
+        currentPeriodNameJa: activePeriod?.titleJa || activePeriod?.title,
+        currentPeriodNameEn: activePeriod?.title,
+        currentPeriodDescriptionJa: activePeriod?.descriptionJa,
+        currentPeriodDescriptionEn: activePeriod?.descriptionEn,
+        redScore: redCells,
+        blueScore: blueCells,
+      });
+      const language = announcementQueueRef.current.getNextLanguage(settings.announcementConfig?.languageMode);
+      const category = announcementQueueRef.current.getNextCategory();
+      const message = buildAnnouncementMessage(ctx, language, category);
+      announcementQueueRef.current.enqueueAnnouncement(message);
+      setDebugAnnouncementQueueSize(announcementQueueRef.current.size);
+      const next = announcementQueueRef.current.getNextAnnouncementToPlay();
+      if (next) {
+        setLastAnnouncement(next);
+        if (process.env.NODE_ENV !== 'production') console.log('[announcement queued]', next);
+        if (process.env.NODE_ENV !== 'production') console.log('[announcement played]', next.id);
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [activePeriod?.descriptionEn, activePeriod?.descriptionJa, activePeriod?.periodKey, activePeriod?.title, activePeriod?.titleJa, blueCells, redCells, settings.announcementConfig?.enabled, settings.announcementConfig?.intervalSec, settings.announcementConfig?.languageMode, settings.announcementConfig?.minCooldownSec, settings.autoAnnouncementEnabled, settings.teamA_en, settings.teamA_ja, settings.teamB_en, settings.teamB_ja]);
 
   const grid = useMemo(() => buildFrontlineGrid(Math.floor(totalBalance)), [totalBalance]);
   const liveBlueCells = useMemo(() => grid.flat().filter((cell) => cell === 'blue').length, [grid]);
@@ -252,6 +374,7 @@ export function BattleLayout() {
 
   return (
     <main className="hud-root">
+      <BgmController settings={settings} periodKey={activePeriod?.periodKey} />
       <div className="hud-stage war-stage">
         <header className="war-header panel">
           <div>
@@ -305,6 +428,11 @@ export function BattleLayout() {
         </section>
 
         <div className="center-lane">
+          <section className="panel vote-note" style={{ marginBottom: 8 }}>
+            <p>AI Reaction Queue: {debugAiQueueSize} / Announcement Queue: {debugAnnouncementQueueSize}</p>
+            {lastAiReaction ? <p className="vote-en">AI: {lastAiReaction.replyText}</p> : null}
+            {lastAnnouncement ? <p className="vote-ja">Announce ({lastAnnouncement.language}): {lastAnnouncement.text}</p> : null}
+          </section>
           <section className="info-row">
             <article className="panel paid-panel">
               <h3>LATEST PAID COMMENTS</h3>

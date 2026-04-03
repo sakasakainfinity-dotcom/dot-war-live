@@ -119,7 +119,8 @@ export async function GET(request) {
 
   return NextResponse.json({
     ok: true,
-    comments: commandItems,
+    comments: enrichedItems,
+    commandComments: commandItems,
     nextPageToken: data.nextPageToken || '',
     pollingIntervalMs: data.pollingIntervalMillis || 5000,
     source: {
