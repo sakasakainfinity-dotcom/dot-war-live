@@ -366,7 +366,7 @@ export function BattleLayout() {
 
   return (
     <main className="hud-root">
-      <BgmController settings={settings} periodKey={activePeriod?.periodKey} />
+      <BgmController settings={settings} currentPeriod={activePeriod} />
       <div className="hud-stage war-stage">
         <header className="war-header panel">
           <div>

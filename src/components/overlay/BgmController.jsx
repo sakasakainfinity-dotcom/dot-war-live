@@ -3,7 +3,9 @@
 import { useEffect, useRef } from 'react';
 import { createBgmManager } from '../../lib/audio/bgm-manager';
 
-export function BgmController({ settings, periodKey }) {
+import { getBgmTrackForPeriod } from '../../lib/game/period-config';
+
+export function BgmController({ settings, currentPeriod }) {
   const managerRef = useRef(null);
 
   useEffect(() => {
@@ -12,9 +14,16 @@ export function BgmController({ settings, periodKey }) {
 
   useEffect(() => {
     const manager = managerRef.current;
-    if (!manager || !periodKey || !settings?.bgmConfig?.enabled) return;
-    manager.switchPeriodBgm(periodKey, settings);
-  }, [periodKey, settings]);
+    if (!manager || !currentPeriod || !settings?.bgmConfig?.enabled) return;
+
+    const track = getBgmTrackForPeriod(currentPeriod, settings);
+    if (!track) {
+      console.warn('[bgm] no track for current period', currentPeriod);
+      return;
+    }
+
+    manager.switch(track.filePath, track.defaultVolume, track.loop);
+  }, [currentPeriod, settings]);
 
   useEffect(() => {
     const manager = managerRef.current;
