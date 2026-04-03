@@ -231,6 +231,15 @@ body {
   color: #a7f3d0;
 }
 
+.board-update-note {
+  margin: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fef08a;
+  text-shadow: 0 0 10px rgba(254, 240, 138, 0.25);
+}
+
 .team-side-label {
   position: absolute;
   top: 1.85rem;

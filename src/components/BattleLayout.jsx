@@ -124,13 +124,33 @@ export function BattleLayout() {
   }, [activePeriod?.id, totalBalance]);
 
   const applyCommand = useCallback(
-    ({ commandCode, user, text, amount = '' }) => {
+    ({ commandCode, user, text, amount = '', messageId = '', authorChannelId = '' }) => {
       const effect = COMMAND_EFFECTS[commandCode];
-      if (!effect || !activePeriod) return;
+      if (!effect || !activePeriod) {
+        if (!effect) {
+          console.log('[youtube:ignored-comment]', {
+            rawText: text,
+            normalizedText: `${text ?? ''}`.trim(),
+            authorChannelId: authorChannelId || user?.id || '',
+            messageId,
+            ignoreReason: 'invalid format',
+          });
+        }
+        return;
+      }
       const isSuperChat = commandCode.startsWith('3') || commandCode.startsWith('5');
       const userKey = user.id || `${user.platform}:${user.name}`;
       const lastVoteAt = voteCooldownRef.current.get(userKey) ?? 0;
-      if (!isSuperChat && Date.now() - lastVoteAt < 15_000) return;
+      if (!isSuperChat && Date.now() - lastVoteAt < 15_000) {
+        console.log('[youtube:ignored-comment]', {
+          rawText: text,
+          normalizedText: `${text ?? ''}`.trim(),
+          authorChannelId: authorChannelId || user?.id || '',
+          messageId,
+          ignoreReason: 'already voted this turn',
+        });
+        return;
+      }
       if (!isSuperChat) voteCooldownRef.current.set(userKey, Date.now());
 
       const commandDelta = effect.blueDelta - effect.redDelta;
@@ -174,7 +194,16 @@ export function BattleLayout() {
       const received = Array.isArray(data.comments) ? data.comments : [];
       nextPageTokenRef.current = data.nextPageToken || '';
       const freshItems = received.filter((item) => {
-        if (seenMessageIdsRef.current.has(item.id)) return false;
+        if (seenMessageIdsRef.current.has(item.id)) {
+          console.log('[youtube:ignored-comment]', {
+            rawText: item.text,
+            normalizedText: `${item.text ?? ''}`.trim(),
+            authorChannelId: item?.user?.id || '',
+            messageId: item.id,
+            ignoreReason: 'duplicate message',
+          });
+          return false;
+        }
         seenMessageIdsRef.current.add(item.id);
         return true;
       });
@@ -185,6 +214,8 @@ export function BattleLayout() {
           user: item.user,
           text: item.text,
           amount: item.amount || '',
+          messageId: item.id,
+          authorChannelId: item?.user?.id || '',
         });
       });
 
@@ -215,6 +246,9 @@ export function BattleLayout() {
 
   const periodNumber = periodContext.currentPeriodIndex;
   const periodRemain = formatCountdown(periodContext.remainingMs);
+  const boardUpdateNotice = activePeriod?.periodKey === 'normal'
+    ? `Next board update in ${periodRemain}`
+    : 'Board updates at end of period';
 
   return (
     <main className="hud-root">
@@ -249,6 +283,7 @@ export function BattleLayout() {
 
           <section className="battle-main panel">
             <div className="period-badge">PERIOD {periodNumber} <span>| 48</span> <em>{periodRemain}</em></div>
+            <p className="board-update-note">{boardUpdateNotice}</p>
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
