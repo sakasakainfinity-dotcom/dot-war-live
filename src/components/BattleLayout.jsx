@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getPeriodContext, readLiveSettings } from '../lib/liveSettings';
 import { detectCommentLanguage } from '../lib/ai/comment-language';
@@ -37,15 +36,11 @@ const HUD_UPDATE_RULES = {
     intervalSec: 60,
     titleEn: 'NEXT UPDATE',
     titleJa: '次の更新まで',
-    noteEn: 'Board updates every 60 seconds',
-    noteJa: '投票・コメントは1分ごとにまとめて反映',
   },
   blitz: {
     intervalSec: 20,
     titleEn: 'NEXT UPDATE',
     titleJa: '次の更新まで',
-    noteEn: 'Board updates every 20 seconds',
-    noteJa: '投票・コメントは20秒ごとにまとめて反映',
   },
 };
 const COMMENT_POLL_INTERVAL_MS = 60_000;
@@ -420,7 +415,7 @@ export function BattleLayout() {
 
   const updateCountdownMs = Math.max(0, updateCycleMs - Math.max(0, nowMs - updateCycleStartedAtMs));
   const updateRemain = formatCountdown(updateCountdownMs);
-  const boardUpdateNotice = `${hudRule.noteEn} (${updateRemain})`;
+  const periodRemain = formatCountdown(periodContext.remainingMs);
   const isUpdateUrgent = updateCountdownMs <= 5000;
 
   return (
@@ -439,8 +434,8 @@ export function BattleLayout() {
           </div>
           <div className="war-status-block">
             <p className="war-status-period">{`PERIOD ${periodContext.currentPeriodIndex} / 48`}</p>
+            <p className="war-status-period-remain">{`TIME LEFT ${periodRemain}`}</p>
             <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p>
-            <Link href="/admin" className="stealth-link">admin</Link>
           </div>
         </header>
 
@@ -462,7 +457,6 @@ export function BattleLayout() {
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
-            <p className="live-balance-note">{boardUpdateNotice} ・ Live front: B {liveBlueCells} / R {liveRedCells}</p>
           </section>
 
           <aside className="panel side-tank side-tank-red">
