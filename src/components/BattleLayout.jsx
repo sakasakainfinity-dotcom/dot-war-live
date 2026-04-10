@@ -32,12 +32,37 @@ const COMMANDS = [
   { code: '3R', team: 'red', labelEn: '$3 or ¥300 + “R”', labelJa: '赤へ3票' },
   { code: '5R', team: 'red', labelEn: '$5 or ¥500 + “R”', labelJa: '青へ攻撃×3💣' },
 ];
+const HUD_UPDATE_RULES = {
+  marathon: {
+    intervalSec: 60,
+    titleEn: 'NEXT UPDATE',
+    titleJa: '次の更新まで',
+    noteEn: 'Board updates every 60 seconds',
+    noteJa: '投票・コメントは1分ごとにまとめて反映',
+  },
+  blitz: {
+    intervalSec: 20,
+    titleEn: 'NEXT UPDATE',
+    titleJa: '次の更新まで',
+    noteEn: 'Board updates every 20 seconds',
+    noteJa: '投票・コメントは20秒ごとにまとめて反映',
+  },
+};
+const COMMENT_POLL_INTERVAL_MS = 60_000;
 
 function formatCountdown(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
   const ss = String(totalSec % 60).padStart(2, '0');
   return `${mm}:${ss}`;
+}
+
+function resolveHudMode(settings) {
+  if (settings?.gameMode === 'marathon' || settings?.gameMode === 'blitz') return settings.gameMode;
+  const startMs = new Date(settings?.startAt).getTime();
+  const endMs = new Date(settings?.endAt).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 'marathon';
+  return endMs - startMs <= 2 * 60 * 60 * 1000 ? 'blitz' : 'marathon';
 }
 
 function buildFrontlineGrid(totalBalance) {
@@ -93,6 +118,7 @@ export function BattleLayout() {
   const [comments, setComments] = useState([]);
   const [topSupporters, setTopSupporters] = useState([]);
   const [latestPaidComments, setLatestPaidComments] = useState([]);
+  const [updateCycleStartedAtMs, setUpdateCycleStartedAtMs] = useState(Date.now());
   const voteCooldownRef = useRef(new Map());
   const activePeriodRef = useRef(null);
   const nextPageTokenRef = useRef('');
@@ -121,7 +147,13 @@ export function BattleLayout() {
 
   const periodContext = getPeriodContext(settings, nowMs);
   const activePeriod = periodContext.current;
-  const nextPeriod = periodContext.next;
+  const hudMode = resolveHudMode(settings);
+  const hudRule = HUD_UPDATE_RULES[hudMode] ?? HUD_UPDATE_RULES.marathon;
+  const updateCycleMs = hudRule.intervalSec * 1000;
+
+  useEffect(() => {
+    setUpdateCycleStartedAtMs(Date.now());
+  }, [hudMode]);
 
   useEffect(() => {
     const currentPeriodId = activePeriod?.id;
@@ -136,6 +168,13 @@ export function BattleLayout() {
       periodStartedAtRef.current = Date.now();
     }
   }, [activePeriod?.id, totalBalance]);
+
+  useEffect(() => {
+    const elapsedMs = Math.max(0, nowMs - updateCycleStartedAtMs);
+    if (elapsedMs < updateCycleMs) return;
+    setPeriodCommittedBalance(Math.floor(totalBalance));
+    setUpdateCycleStartedAtMs(nowMs);
+  }, [nowMs, totalBalance, updateCycleMs, updateCycleStartedAtMs]);
 
   const grid = useMemo(() => buildFrontlineGrid(Math.floor(totalBalance)), [totalBalance]);
   const liveBlueCells = useMemo(() => grid.flat().filter((cell) => cell === 'blue').length, [grid]);
@@ -264,7 +303,7 @@ export function BattleLayout() {
       const res = await fetch(`/api/youtube/comments${pageToken}`, { cache: 'no-store' }).catch(() => null);
       if (!active) return;
       if (!res || !res.ok) {
-        timer = setTimeout(poll, 5000);
+        timer = setTimeout(poll, COMMENT_POLL_INTERVAL_MS);
         return;
       }
 
@@ -306,7 +345,7 @@ export function BattleLayout() {
         processAiReaction(item);
       });
 
-      timer = setTimeout(poll, Number(data.pollingIntervalMs) || 5000);
+      timer = setTimeout(poll, COMMENT_POLL_INTERVAL_MS);
     };
 
     poll();
@@ -379,11 +418,10 @@ export function BattleLayout() {
   const latestPaid = latestPaidComments;
   const ranking = topSupporters;
 
-  const periodNumber = periodContext.currentPeriodIndex;
-  const periodRemain = formatCountdown(periodContext.remainingMs);
-  const boardUpdateNotice = activePeriod?.periodKey === 'normal'
-    ? `Next board update in ${periodRemain}`
-    : 'Board updates at end of period';
+  const updateCountdownMs = Math.max(0, updateCycleMs - Math.max(0, nowMs - updateCycleStartedAtMs));
+  const updateRemain = formatCountdown(updateCountdownMs);
+  const boardUpdateNotice = `${hudRule.noteEn} (${updateRemain})`;
+  const isUpdateUrgent = updateCountdownMs <= 5000;
 
   return (
     <main className="hud-root">
@@ -398,7 +436,6 @@ export function BattleLayout() {
             <p className="war-status-now">NOW: {activePeriod?.title ?? 'NORMAL'}</p>
             <p className="war-status-sub-en">{activePeriod?.descriptionEn ?? 'Standard battle rules.'}</p>
             <p className="war-status-sub-ja">{activePeriod?.descriptionJa ?? '通常ルールのバトルです。'}</p>
-            <p className="war-status-next">Next period: {nextPeriod?.title ?? 'NORMAL'}</p>
           </div>
           <Link href="/admin" className="stealth-link">admin</Link>
         </header>
@@ -418,12 +455,18 @@ export function BattleLayout() {
           </aside>
 
           <section className="battle-main panel">
-            <div className="period-badge">PERIOD {periodNumber} <span>| 48</span> <em>{periodRemain}</em></div>
-            <p className="board-update-note">{boardUpdateNotice}</p>
+            <div className="period-badge period-badge-countdown">
+              <p className="countdown-title">{hudRule.titleEn}</p>
+              <p className={`countdown-value${isUpdateUrgent ? ' countdown-value-urgent' : ''}`}>{updateRemain}</p>
+              <p className="countdown-title-ja">{hudRule.titleJa}</p>
+              <p className="board-update-note">{hudRule.noteEn}</p>
+              <p className="board-update-note-ja">{hudRule.noteJa}</p>
+              <p className="period-subtle">NOW: {activePeriod?.title ?? 'NORMAL'}</p>
+            </div>
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
-            <p className="live-balance-note">{boardUpdateNotice} ・ Live front: B {liveBlueCells} / R {liveRedCells} (gauge reflects on period end)</p>
+            <p className="live-balance-note">{boardUpdateNotice} ・ Live front: B {liveBlueCells} / R {liveRedCells} (gauge reflects on each update)</p>
           </section>
 
           <aside className="panel side-tank side-tank-red">

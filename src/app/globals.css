@@ -211,33 +211,67 @@ body {
 }
 
 .period-badge {
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: center;
+  display: grid;
+  justify-items: center;
+  gap: 0.04rem;
   margin: 0 auto;
-  padding: 0.15rem 0.5rem;
+  padding: 0.24rem 0.72rem 0.3rem;
   border: 1px solid rgba(248, 250, 252, 0.4);
-  border-radius: 999px;
+  border-radius: 14px;
   font-weight: 900;
   background: rgba(15, 23, 42, 0.82);
 }
 
-.period-badge span {
-  color: #fcd34d;
+.period-badge-countdown {
+  min-width: clamp(260px, 34vw, 480px);
 }
 
-.period-badge em {
-  font-style: normal;
-  color: #a7f3d0;
+.countdown-title,
+.countdown-title-ja,
+.countdown-value,
+.period-subtle,
+.board-update-note,
+.board-update-note-ja {
+  margin: 0;
+}
+
+.countdown-title {
+  font-size: clamp(0.66rem, 1.1vw, 0.92rem);
+  letter-spacing: 0.08em;
+  color: #bfdbfe;
+}
+
+.countdown-title-ja {
+  font-size: clamp(0.52rem, 0.75vw, 0.66rem);
+  color: #cbd5e1;
+}
+
+.countdown-value {
+  font-size: clamp(1.6rem, 4.8vw, 3rem);
+  line-height: 1;
+  color: #fef08a;
+  text-shadow: 0 0 14px rgba(254, 240, 138, 0.33);
+}
+
+.countdown-value-urgent {
+  color: #fda4af;
+  text-shadow: 0 0 14px rgba(244, 63, 94, 0.42);
 }
 
 .board-update-note {
-  margin: 0;
-  text-align: center;
-  font-size: 0.72rem;
+  font-size: clamp(0.58rem, 0.9vw, 0.78rem);
   font-weight: 800;
-  color: #fef08a;
-  text-shadow: 0 0 10px rgba(254, 240, 138, 0.25);
+  color: #e2e8f0;
+}
+
+.board-update-note-ja {
+  font-size: clamp(0.5rem, 0.76vw, 0.68rem);
+  color: #cbd5e1;
+}
+
+.period-subtle {
+  font-size: clamp(0.5rem, 0.72vw, 0.64rem);
+  color: #93c5fd;
 }
 
 .team-side-label {
