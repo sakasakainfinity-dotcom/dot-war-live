@@ -51,8 +51,8 @@ export function createDefaultLiveSettings() {
     },
     announcementConfig: {
       enabled: true,
-      intervalSec: 60,
-      minCooldownSec: 50,
+      intervalSec: 480,
+      minCooldownSec: 420,
       languageMode: 'ja_en_alternate',
     },
     bgmConfig: {
@@ -156,8 +156,8 @@ export function normalizeLiveSettings(raw) {
     },
     announcementConfig: {
       enabled: normalizeBoolean(raw?.announcementConfig?.enabled, fallback.announcementConfig.enabled),
-      intervalSec: normalizeNumber(raw?.announcementConfig?.intervalSec, fallback.announcementConfig.intervalSec, 30, 180),
-      minCooldownSec: normalizeNumber(raw?.announcementConfig?.minCooldownSec, fallback.announcementConfig.minCooldownSec, 30, 180),
+      intervalSec: normalizeNumber(raw?.announcementConfig?.intervalSec, fallback.announcementConfig.intervalSec, 120, 1200),
+      minCooldownSec: normalizeNumber(raw?.announcementConfig?.minCooldownSec, fallback.announcementConfig.minCooldownSec, 120, 1200),
       languageMode: ['ja_only', 'en_only', 'ja_en_alternate', 'ja_then_en_same_message'].includes(raw?.announcementConfig?.languageMode) ? raw.announcementConfig.languageMode : fallback.announcementConfig.languageMode,
     },
     bgmConfig: {

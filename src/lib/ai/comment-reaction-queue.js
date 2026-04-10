@@ -6,13 +6,21 @@ export function createAiReactionQueue(options = {}) {
   let lastAcceptedAt = 0;
 
   function enqueueAiReaction(result) {
-    if (!result) return { queued: false, reason: 'empty' };
+    return enqueueAiSpeech(result);
+  }
+
+  function enqueueAiSpeech(item) {
+    if (!item) return { queued: false, reason: 'empty' };
     if (queue.length >= maxQueueSize) queue.shift();
-    queue.push(result);
+    queue.push(item);
     return { queued: true, size: queue.length };
   }
 
   function getNextAiReactionToPlay() {
+    return getNextAiSpeech();
+  }
+
+  function getNextAiSpeech() {
     const next = queue.shift();
     if (!next) return null;
     next.status = 'played';
@@ -31,9 +39,9 @@ export function createAiReactionQueue(options = {}) {
       lastAcceptedAt,
       userCooldownMap,
       recentNormalizedTextMap,
-      globalCooldownMs: options.globalCooldownMs ?? 30_000,
-      sameUserCooldownMs: options.sameUserCooldownMs ?? 45_000,
-      duplicateCooldownMs: options.duplicateCooldownMs ?? 120_000,
+      globalCooldownMs: options.globalCooldownMs ?? 35_000,
+      sameUserCooldownMs: options.sameUserCooldownMs ?? 60_000,
+      duplicateCooldownMs: options.duplicateCooldownMs ?? 150_000,
       ngWords: options.ngWords ?? ['差別', '死ね', 'kill yourself', 'spam link'],
     };
   }
@@ -41,6 +49,8 @@ export function createAiReactionQueue(options = {}) {
   return {
     enqueueAiReaction,
     getNextAiReactionToPlay,
+    enqueueAiSpeech,
+    getNextAiSpeech,
     markAccepted,
     getFilterContext,
     get size() {

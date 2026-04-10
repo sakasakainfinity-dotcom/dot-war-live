@@ -10,9 +10,9 @@ function sanitizeSingleSentence(text) {
 }
 
 function trimByLanguage(text, language) {
-  if (language === 'ja') return text.length > 50 ? `${text.slice(0, 49)}…` : text;
+  if (language === 'ja') return text.length > 46 ? `${text.slice(0, 45)}…` : text;
   const words = text.split(/\s+/).filter(Boolean);
-  if (words.length > 16) return `${words.slice(0, 16).join(' ')}...`;
+  if (words.length > 14) return `${words.slice(0, 14).join(' ')}...`;
   return text;
 }
 
@@ -20,7 +20,11 @@ function looksUnsafe(text) {
   return /(kill|die|差別|暴力|sex|doxx|住所|電話番号)/i.test(`${text ?? ''}`);
 }
 
-export async function generateAiCommentReaction(input) {
+export function chooseVoiceForLanguage(language) {
+  return language === 'en' ? 'verse' : 'alloy';
+}
+
+export async function buildAiReply(input) {
   if (looksUnsafe(input.commentText)) {
     return { skipped: true, reason: 'unsafe_comment' };
   }
@@ -38,7 +42,7 @@ export async function generateAiCommentReaction(input) {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.9,
+      temperature: 0.8,
       max_output_tokens: 80,
       input: [
         { role: 'system', content: [{ type: 'input_text', text: systemPrompt }] },
@@ -61,9 +65,15 @@ export async function generateAiCommentReaction(input) {
       sourceUserName: input.userName,
       sourceText: input.commentText,
       language: input.language,
+      voice: chooseVoiceForLanguage(input.language),
       replyText: sanitized,
       createdAt: new Date().toISOString(),
       status: 'queued',
+      kind: 'ai_reply',
     },
   };
+}
+
+export async function generateAiCommentReaction(input) {
+  return buildAiReply(input);
 }
