@@ -428,16 +428,20 @@ export function BattleLayout() {
       <BgmController settings={settings} currentPeriod={activePeriod} />
       <div className="hud-stage war-stage">
         <header className="war-header panel">
-          <div>
-            <p className="war-title-en"><span className="team-blue">{settings.teamA_en}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_en}</span></p>
-            <p className="war-title-ja"><span className="team-blue">{settings.teamA_ja}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_ja}</span></p>
-          </div>
-          <div className="war-status-block">
+          <div className="war-period-block">
             <p className="war-status-now">NOW: {activePeriod?.title ?? 'NORMAL'}</p>
             <p className="war-status-sub-en">{activePeriod?.descriptionEn ?? 'Standard battle rules.'}</p>
             <p className="war-status-sub-ja">{activePeriod?.descriptionJa ?? '通常ルールのバトルです。'}</p>
           </div>
-          <Link href="/admin" className="stealth-link">admin</Link>
+          <div className="war-title-block">
+            <p className="war-title-en"><span className="team-blue">{settings.teamA_en}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_en}</span></p>
+            <p className="war-title-ja"><span className="team-blue">{settings.teamA_ja}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_ja}</span></p>
+          </div>
+          <div className="war-status-block">
+            <p className="war-status-period">{`PERIOD ${periodContext.currentPeriodIndex} / 48`}</p>
+            <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p>
+            <Link href="/admin" className="stealth-link">admin</Link>
+          </div>
         </header>
 
         <section className="battle-zone">
@@ -455,18 +459,10 @@ export function BattleLayout() {
           </aside>
 
           <section className="battle-main panel">
-            <div className="period-badge period-badge-countdown">
-              <p className="countdown-title">{hudRule.titleEn}</p>
-              <p className={`countdown-value${isUpdateUrgent ? ' countdown-value-urgent' : ''}`}>{updateRemain}</p>
-              <p className="countdown-title-ja">{hudRule.titleJa}</p>
-              <p className="board-update-note">{hudRule.noteEn}</p>
-              <p className="board-update-note-ja">{hudRule.noteJa}</p>
-              <p className="period-subtle">NOW: {activePeriod?.title ?? 'NORMAL'}</p>
-            </div>
             <div className="team-side-label team-side-left">BLUE</div>
             <div className="team-side-label team-side-right">RED</div>
             <BattleGrid grid={grid} />
-            <p className="live-balance-note">{boardUpdateNotice} ・ Live front: B {liveBlueCells} / R {liveRedCells} (gauge reflects on each update)</p>
+            <p className="live-balance-note">{boardUpdateNotice} ・ Live front: B {liveBlueCells} / R {liveRedCells}</p>
           </section>
 
           <aside className="panel side-tank side-tank-red">
