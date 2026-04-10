@@ -4,6 +4,16 @@ function warnLog(...args) {
   console.warn(...args);
 }
 
+function debugLog(...args) {
+  if (process.env.NODE_ENV !== 'production') {
+    console.info(...args);
+  }
+}
+
+function sanitizeVolume(volume) {
+  return Math.max(0, Math.min(1, Number(volume) || 0));
+}
+
 function fadeTo(audio, target, durationMs = DEFAULT_FADE_MS) {
   if (!audio) return Promise.resolve();
   const start = audio.volume;
@@ -23,7 +33,13 @@ export function createBgmManager(settings) {
   let currentAudio = null;
   let currentFilePath = '';
   let muted = false;
-  let globalVolume = Number(settings?.bgmConfig?.volume ?? 0.35);
+  let globalVolume = sanitizeVolume(settings?.bgmConfig?.volume ?? 0.35);
+
+  function applyCurrentAudioVolume() {
+    if (!currentAudio) return;
+    currentAudio.volume = muted ? 0 : globalVolume;
+    debugLog('[bgm] applied volume to current audio');
+  }
 
   async function switchTrack(filePath, volume = globalVolume, loop = true) {
     if (!filePath) {
@@ -36,9 +52,15 @@ export function createBgmManager(settings) {
       return;
     }
 
+    const requestedVolume = sanitizeVolume(volume);
+    globalVolume = requestedVolume;
+
     if (currentAudio && currentFilePath === filePath) {
+      applyCurrentAudioVolume();
       return;
     }
+
+    debugLog('[bgm] switching bgm with volume:', requestedVolume);
 
     const nextAudio = new Audio(filePath);
     nextAudio.loop = loop;
@@ -51,12 +73,8 @@ export function createBgmManager(settings) {
       return;
     }
 
-    const requestedVolume = Math.max(0, Math.min(1, Number(volume) || 0));
     const targetVolume = muted ? 0 : requestedVolume;
-    await Promise.all([
-      fadeTo(nextAudio, targetVolume, 500),
-      fadeTo(currentAudio, 0, 400),
-    ]);
+    await Promise.all([fadeTo(nextAudio, targetVolume, 500), fadeTo(currentAudio, 0, 400)]);
 
     if (currentAudio) {
       currentAudio.pause();
@@ -65,23 +83,39 @@ export function createBgmManager(settings) {
 
     currentAudio = nextAudio;
     currentFilePath = filePath;
-    globalVolume = requestedVolume;
   }
 
-  function setBgmVolume(volume) {
-    globalVolume = Math.max(0, Math.min(1, Number(volume) || 0));
-    if (currentAudio && !muted) currentAudio.volume = globalVolume;
+  function setVolume(volume) {
+    globalVolume = sanitizeVolume(volume);
+    debugLog('[bgm] bgm volume changed:', globalVolume);
+    applyCurrentAudioVolume();
   }
 
   function muteBgm() {
     muted = true;
-    if (currentAudio) currentAudio.volume = 0;
+    debugLog('[bgm] muted');
+    applyCurrentAudioVolume();
   }
 
   function unmuteBgm() {
     muted = false;
-    if (currentAudio) currentAudio.volume = globalVolume;
+    debugLog('[bgm] unmuted');
+    applyCurrentAudioVolume();
   }
 
-  return { switch: switchTrack, setBgmVolume, muteBgm, unmuteBgm };
+  function stop() {
+    if (!currentAudio) return;
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+    currentFilePath = '';
+  }
+
+  return {
+    switch: switchTrack,
+    setVolume,
+    muteBgm,
+    unmuteBgm,
+    stop,
+  };
 }
