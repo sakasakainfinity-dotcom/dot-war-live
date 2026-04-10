@@ -10,6 +10,7 @@ import { createAnnouncementQueue, shouldScheduleAutoAnnouncement } from '../src/
 test('detectCommentLanguage follows ja/en/skip rules', () => {
   assert.equal(detectCommentLanguage('それ青つよすぎるでしょ笑'), 'ja');
   assert.equal(detectCommentLanguage('Blue is actually dominating now'), 'en');
+  assert.equal(detectCommentLanguage('ok this is close'), 'en');
   assert.equal(detectCommentLanguage('😂😂😂😂😂😂😂😂😂😂'), 'skip');
   assert.equal(detectCommentLanguage('https://example.com'), 'skip');
 });
@@ -63,10 +64,10 @@ test('announcement scheduler and queue work', () => {
   assert.equal(check.ok, true);
 
   const context = buildAnnouncementContext({ currentPeriodNameJa: '中央ボーナス', currentPeriodNameEn: 'Central Bonus' });
-  const msg = buildAnnouncementMessage(context, 'ja', 'battle_explain');
+  const msg = buildAnnouncementMessage(context, 'ja', 'explanation');
   assert.equal(msg.language, 'ja');
 
   const queue = createAnnouncementQueue();
-  queue.enqueueAnnouncement(msg);
+  queue.enqueueAnnouncementSpeech(msg);
   assert.equal(queue.getNextAnnouncementToPlay().status, 'played');
 });

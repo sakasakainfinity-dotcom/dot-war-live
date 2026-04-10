@@ -23,7 +23,7 @@ export function shouldUseCommentForAiReaction(comment, context) {
   const normalizedText = normalizeCommentText(text);
   const userId = comment?.userId || comment?.user?.id || 'unknown';
 
-  if (compact.length < 10) return { ok: false, reason: 'too_short', normalizedText, detectedLanguage: 'skip' };
+  if (compact.length < 6) return { ok: false, reason: 'too_short', normalizedText, detectedLanguage: 'skip' };
   if (isGameCommandComment(text)) return { ok: false, reason: 'game_command', normalizedText, detectedLanguage: 'skip' };
   if (URL_ONLY_RE.test(compact)) return { ok: false, reason: 'url_only', normalizedText, detectedLanguage: 'skip' };
   if (EMOJI_ONLY_RE.test(compact)) return { ok: false, reason: 'emoji_only', normalizedText, detectedLanguage: 'skip' };
@@ -33,16 +33,20 @@ export function shouldUseCommentForAiReaction(comment, context) {
   if (includesNgWords(text, context?.ngWords)) return { ok: false, reason: 'ng_word', normalizedText, detectedLanguage: 'skip' };
 
   const lastGlobalAt = context?.lastAcceptedAt ?? 0;
-  if (now - lastGlobalAt < (context?.globalCooldownMs ?? 30_000)) return { ok: false, reason: 'global_cooldown', normalizedText, detectedLanguage: 'skip' };
+  if (now - lastGlobalAt < (context?.globalCooldownMs ?? 35_000)) return { ok: false, reason: 'global_cooldown', normalizedText, detectedLanguage: 'skip' };
 
   const lastUserAt = context?.userCooldownMap?.get(userId) ?? 0;
-  if (now - lastUserAt < (context?.sameUserCooldownMs ?? 45_000)) return { ok: false, reason: 'same_user_cooldown', normalizedText, detectedLanguage: 'skip' };
+  if (now - lastUserAt < (context?.sameUserCooldownMs ?? 60_000)) return { ok: false, reason: 'same_user_cooldown', normalizedText, detectedLanguage: 'skip' };
 
   const lastTextAt = context?.recentNormalizedTextMap?.get(normalizedText) ?? 0;
-  if (now - lastTextAt < (context?.duplicateCooldownMs ?? 120_000)) return { ok: false, reason: 'duplicate', normalizedText, detectedLanguage: 'skip' };
+  if (now - lastTextAt < (context?.duplicateCooldownMs ?? 150_000)) return { ok: false, reason: 'duplicate', normalizedText, detectedLanguage: 'skip' };
 
   const detectedLanguage = detectCommentLanguage(text);
   if (detectedLanguage === 'skip') return { ok: false, reason: 'language_skip', normalizedText, detectedLanguage };
+
+  if (detectedLanguage === 'en' && compact.length < 12) {
+    return { ok: false, reason: 'english_too_short', normalizedText, detectedLanguage: 'skip' };
+  }
 
   return { ok: true, reason: 'accepted', normalizedText, detectedLanguage };
 }

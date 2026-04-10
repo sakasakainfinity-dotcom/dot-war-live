@@ -6,6 +6,7 @@ import { getPeriodContext, readLiveSettings } from '../lib/liveSettings';
 import { detectCommentLanguage } from '../lib/ai/comment-language';
 import { shouldUseCommentForAiReaction } from '../lib/ai/comment-filter';
 import { createAiReactionQueue } from '../lib/ai/comment-reaction-queue';
+import { chooseVoiceForLanguage } from '../lib/ai/comment-reaction-service';
 import { buildAnnouncementContext, buildAnnouncementMessage } from '../lib/announcer/announcement-service';
 import { createAnnouncementQueue, shouldScheduleAutoAnnouncement } from '../lib/announcer/announcement-scheduler';
 import { BattleGrid } from './BattleGrid';
@@ -101,6 +102,7 @@ export function BattleLayout() {
   const lastAiReactionAtRef = useRef(0);
   const lastMeaningfulCommentAtRef = useRef(0);
   const periodStartedAtRef = useRef(Date.now());
+  const recentCommentTimestampsRef = useRef([]);
 
   useEffect(() => {
     const tick = setInterval(() => setNowMs(Date.now()), 1000);
@@ -148,7 +150,7 @@ export function BattleLayout() {
 
     if (process.env.NODE_ENV !== 'production') console.log('[comment received]', { id: item.id, text: item.text });
     const detectedLanguage = detectCommentLanguage(item.text);
-    if (process.env.NODE_ENV !== 'production') console.log('[language detected]', { messageId: item.id, detectedLanguage });
+    if (process.env.NODE_ENV !== 'production') console.log('[detected language]', { messageId: item.id, detectedLanguage });
 
     const filterResult = shouldUseCommentForAiReaction(
       { ...item, userId: item?.user?.id },
@@ -156,9 +158,10 @@ export function BattleLayout() {
     );
 
     if (!filterResult.ok) {
-      if (process.env.NODE_ENV !== 'production') console.log('[skipped reason]', { messageId: item.id, reason: filterResult.reason });
+      if (process.env.NODE_ENV !== 'production') console.log('[comment skipped reason]', { messageId: item.id, reason: filterResult.reason });
       return;
     }
+    if (process.env.NODE_ENV !== 'production') console.log('[comment accepted for ai reply]', { messageId: item.id, language: filterResult.detectedLanguage });
 
     aiQueueRef.current.markAccepted({
       userId: item?.user?.id || 'unknown',
@@ -189,12 +192,14 @@ export function BattleLayout() {
 
     const data = await res.json();
     if (data.skipped || !data.result) return;
-    aiQueueRef.current.enqueueAiReaction(data.result);
-    const next = aiQueueRef.current.getNextAiReactionToPlay();
+    const selectedVoice = chooseVoiceForLanguage(data.result.language);
+    if (process.env.NODE_ENV !== 'production') console.log('[selected voice]', { messageId: item.id, selectedVoice });
+    aiQueueRef.current.enqueueAiSpeech({ ...data.result, voice: selectedVoice });
+    const next = aiQueueRef.current.getNextAiSpeech();
     if (next) {
       lastAiReactionAtRef.current = Date.now();
       if (process.env.NODE_ENV !== 'production') console.log('[AI generation success]', { messageId: item.id, reply: next.replyText });
-      if (process.env.NODE_ENV !== 'production') console.log('[queued]', { queueSize: aiQueueRef.current.size });
+      if (process.env.NODE_ENV !== 'production') console.log('[speech queued]', { queueSize: aiQueueRef.current.size });
     }
   }, [activePeriod?.title, blueCells, redCells, settings.aiReplyEnabled, settings.teamA_en, settings.teamB_en]);
 
@@ -284,6 +289,9 @@ export function BattleLayout() {
       });
 
       freshItems.reverse().forEach((item) => {
+        const now = Date.now();
+        recentCommentTimestampsRef.current.push(now);
+        recentCommentTimestampsRef.current = recentCommentTimestampsRef.current.filter((ts) => now - ts < 90_000);
         applyCommand({
           commandCode: item.commandCode,
           user: item.user,
@@ -311,18 +319,23 @@ export function BattleLayout() {
   useEffect(() => {
     const timer = setInterval(() => {
       if (!settings.autoAnnouncementEnabled || !settings.announcementConfig?.enabled) return;
+      const nowMs = Date.now();
+      recentCommentTimestampsRef.current = recentCommentTimestampsRef.current.filter((ts) => nowMs - ts < 90_000);
       const scheduleCheck = shouldScheduleAutoAnnouncement({}, {
         enabled: true,
-        nowMs: Date.now(),
+        nowMs,
         lastMeaningfulCommentAtMs: lastMeaningfulCommentAtRef.current,
         lastAiReactionAtMs: lastAiReactionAtRef.current,
         lastAnnouncementAtMs: announcementQueueRef.current.lastAnnouncementAtMs,
+        nextAnnouncementAtMs: announcementQueueRef.current.nextAnnouncementAtMs,
         announcementCooldownMs: (settings.announcementConfig?.minCooldownSec || 50) * 1000,
         idleThresholdMs: (settings.announcementConfig?.intervalSec || 60) * 1000,
+        recentCommentCount: recentCommentTimestampsRef.current.length,
+        speechQueueBusy: aiQueueRef.current.size > 0 || announcementQueueRef.current.size > 0,
         periodStartedAtMs: periodStartedAtRef.current,
       });
       if (!scheduleCheck.ok) {
-        if (process.env.NODE_ENV !== 'production') console.log('[announcement skipped reason]', scheduleCheck.reason);
+        if (process.env.NODE_ENV !== 'production') console.log('[speech dropped due to cooldown]', scheduleCheck.reason);
         return;
       }
       if (process.env.NODE_ENV !== 'production') console.log('[announcement scheduled]', { period: activePeriod?.periodKey });
@@ -336,19 +349,27 @@ export function BattleLayout() {
         currentPeriodDescriptionEn: activePeriod?.descriptionEn,
         redScore: redCells,
         blueScore: blueCells,
+        minutesLeft: Math.max(1, Math.ceil(periodContext.remainingMs / 60_000)),
+        teamRedJa: settings.teamB_ja,
+        teamBlueJa: settings.teamA_ja,
+        teamRedEn: settings.teamB_en,
+        teamBlueEn: settings.teamA_en,
       });
-      const language = announcementQueueRef.current.getNextLanguage(settings.announcementConfig?.languageMode);
-      const category = announcementQueueRef.current.getNextCategory();
-      const message = buildAnnouncementMessage(ctx, language, category);
-      announcementQueueRef.current.enqueueAnnouncement(message);
+      const tokyoNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const language = announcementQueueRef.current.chooseAnnouncementLanguage(tokyoNow);
+      if (process.env.NODE_ENV !== 'production') console.log('[announcement language selected]', language);
+      const category = announcementQueueRef.current.chooseAnnouncementCategory();
+      if (process.env.NODE_ENV !== 'production') console.log('[announcement category selected]', category);
+      const message = buildAnnouncementMessage(ctx, language, category, announcementQueueRef.current.recentTemplateKeys);
+      announcementQueueRef.current.enqueueAnnouncementSpeech(message);
       const next = announcementQueueRef.current.getNextAnnouncementToPlay();
       if (next) {
-        if (process.env.NODE_ENV !== 'production') console.log('[announcement queued]', next);
+        if (process.env.NODE_ENV !== 'production') console.log('[speech queued]', next);
         if (process.env.NODE_ENV !== 'production') console.log('[announcement played]', next.id);
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [activePeriod?.descriptionEn, activePeriod?.descriptionJa, activePeriod?.periodKey, activePeriod?.title, activePeriod?.titleJa, blueCells, redCells, settings.announcementConfig?.enabled, settings.announcementConfig?.intervalSec, settings.announcementConfig?.languageMode, settings.announcementConfig?.minCooldownSec, settings.autoAnnouncementEnabled, settings.teamA_en, settings.teamA_ja, settings.teamB_en, settings.teamB_ja]);
+  }, [activePeriod?.descriptionEn, activePeriod?.descriptionJa, activePeriod?.periodKey, activePeriod?.title, activePeriod?.titleJa, blueCells, periodContext.remainingMs, redCells, settings.announcementConfig?.enabled, settings.announcementConfig?.intervalSec, settings.announcementConfig?.minCooldownSec, settings.autoAnnouncementEnabled, settings.teamA_en, settings.teamA_ja, settings.teamB_en, settings.teamB_ja]);
 
   const blueVotes = comments.filter((comment) => ['B', '3B', '5B'].includes(comment.commandCode)).length;
   const redVotes = comments.filter((comment) => ['R', '3R', '5R'].includes(comment.commandCode)).length;

@@ -1,11 +1,30 @@
 import { ANNOUNCEMENT_CATEGORIES, ANNOUNCEMENT_TEMPLATES } from './announcement-templates.js';
 
+function calculateLeadingSide(context) {
+  const { redScore, blueScore, teamRedJa, teamBlueJa, teamRedEn, teamBlueEn } = context;
+  if (redScore === blueScore) {
+    return {
+      ja: '両チーム',
+      en: 'Both sides',
+    };
+  }
+  if (redScore > blueScore) {
+    return { ja: teamRedJa, en: teamRedEn };
+  }
+  return { ja: teamBlueJa, en: teamBlueEn };
+}
+
 export function buildAnnouncementContext(gameState) {
   const redScore = Number(gameState?.redScore ?? 0);
   const blueScore = Number(gameState?.blueScore ?? 0);
-  const diff = Math.abs(redScore - blueScore);
-  const leadingTeam = redScore === blueScore ? 'tie' : redScore > blueScore ? 'red' : 'blue';
-  const battleState = diff <= 3 ? 'close' : diff <= 15 ? 'slight_lead' : 'dominant';
+  const leading = calculateLeadingSide({
+    redScore,
+    blueScore,
+    teamRedJa: gameState?.teamRedJa || '赤チーム',
+    teamBlueJa: gameState?.teamBlueJa || '青チーム',
+    teamRedEn: gameState?.teamRedEn || 'Red team',
+    teamBlueEn: gameState?.teamBlueEn || 'Blue team',
+  });
 
   return {
     topicTitleJa: gameState?.topicTitleJa || 'Dot War Live',
@@ -13,39 +32,46 @@ export function buildAnnouncementContext(gameState) {
     currentPeriodKey: gameState?.currentPeriodKey || 'normal',
     currentPeriodNameJa: gameState?.currentPeriodNameJa || '通常フェーズ',
     currentPeriodNameEn: gameState?.currentPeriodNameEn || 'Normal',
-    currentPeriodDescriptionJa: gameState?.currentPeriodDescriptionJa || '通常ルールのバトルです。',
-    currentPeriodDescriptionEn: gameState?.currentPeriodDescriptionEn || 'Standard battle rules.',
     redScore,
     blueScore,
-    leadingTeam,
-    battleState,
-    canVote: gameState?.canVote ?? true,
-    voteInstructionsJa: gameState?.voteInstructionsJa || 'コメントで R または B を送ると参加できます',
-    voteInstructionsEn: gameState?.voteInstructionsEn || 'Vote by commenting R or B',
+    minutesLeft: Math.max(1, Number(gameState?.minutesLeft ?? 1)),
+    leadingSide: leading.ja,
+    leadingSideEn: leading.en,
   };
 }
 
-function pickTemplate(language, category) {
-  const list = ANNOUNCEMENT_TEMPLATES[language]?.[category] || ANNOUNCEMENT_TEMPLATES[language]?.status || [];
-  if (!list.length) return '';
-  return list[Math.floor(Math.random() * list.length)];
+function pickTemplate(language, category, recentTemplateKeys = []) {
+  const list = ANNOUNCEMENT_TEMPLATES[language]?.[category] || ANNOUNCEMENT_TEMPLATES[language]?.engagement || [];
+  if (!list.length) return { text: '', templateKey: '' };
+
+  const fresh = list
+    .map((template, idx) => ({ template, templateKey: `${language}:${category}:${idx}` }))
+    .filter((item) => !recentTemplateKeys.includes(item.templateKey));
+
+  const pool = fresh.length ? fresh : list.map((template, idx) => ({ template, templateKey: `${language}:${category}:${idx}` }));
+  const selected = pool[Math.floor(Math.random() * pool.length)];
+  return { text: selected.template, templateKey: selected.templateKey };
 }
 
-export function buildAnnouncementMessage(context, language = 'ja', category = 'status') {
-  const safeCategory = ANNOUNCEMENT_CATEGORIES.includes(category) ? category : 'status';
-  const template = pickTemplate(language, safeCategory);
-  const text = template
+export function buildAnnouncementMessage(context, language = 'ja', category = 'engagement', recentTemplateKeys = []) {
+  const safeCategory = ANNOUNCEMENT_CATEGORIES.includes(category) ? category : 'engagement';
+  const picked = pickTemplate(language, safeCategory, recentTemplateKeys);
+  const text = picked.text
+    .replaceAll('{minutesLeft}', `${context.minutesLeft}`)
+    .replaceAll('{leadingSide}', context.leadingSide)
+    .replaceAll('{leadingSideEn}', context.leadingSideEn)
     .replaceAll('{periodNameJa}', context.currentPeriodNameJa)
-    .replaceAll('{periodDescriptionJa}', context.currentPeriodDescriptionJa)
-    .replaceAll('{periodNameEn}', context.currentPeriodNameEn)
-    .replaceAll('{periodDescriptionEn}', context.currentPeriodDescriptionEn);
+    .replaceAll('{periodNameEn}', context.currentPeriodNameEn);
 
   return {
     id: `ann-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     category: safeCategory,
     language,
+    templateKey: picked.templateKey,
+    voice: language === 'en' ? 'verse' : 'alloy',
     text,
     createdAt: new Date().toISOString(),
     status: 'queued',
+    kind: 'announcement',
   };
 }
