@@ -237,7 +237,7 @@ body {
   min-height: 0;
   padding: 0.16rem 0.34rem 0.28rem;
   display: grid;
-   grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 0.08rem;
 }
 
