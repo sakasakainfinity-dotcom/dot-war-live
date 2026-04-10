@@ -3,6 +3,8 @@ import { savePaidEvents, readPaidEventSummary } from '../../../../lib/server/pai
 import { readCurrentStreamSettings } from '../../../../lib/server/streamSettingsStore';
 import { detectCommandCode } from '../../../../lib/youtubeVoteParser';
 
+const POLLING_INTERVAL_MS = 60_000;
+
 function normalizeYouTubeItem(item) {
   const snippet = item?.snippet || {};
   const details = snippet?.superChatDetails;
@@ -122,7 +124,7 @@ export async function GET(request) {
     comments: enrichedItems,
     commandComments: commandItems,
     nextPageToken: data.nextPageToken || '',
-    pollingIntervalMs: data.pollingIntervalMillis || 5000,
+    pollingIntervalMs: POLLING_INTERVAL_MS,
     source: {
       videoId: config.current_video_id || '',
       liveChatId: config.current_live_chat_id,
