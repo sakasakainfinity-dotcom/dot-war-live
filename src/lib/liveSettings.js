@@ -436,26 +436,36 @@ export function getModeTimeContext(settings, nowMs = Date.now()) {
     const elapsed = Math.max(0, nowMs - startMs);
 
     if (nowMs < startMs) {
-      return { phase: 'first_half', label: '前半 00:00', remainingMs: firstMs, elapsedMs: 0, statusText: copy.statusTitleEn, displayIndex: 1 };
+      return { phase: 'pre_match', label: `${formatKickoffTime(startMs)} KICK OFF`, remainingMs: startMs - nowMs, elapsedMs: 0, statusText: 'KICK OFF', displayIndex: 0 };
     }
     if (elapsed < firstMs) {
-      return { phase: 'first_half', label: `前半 ${formatClock(elapsed)}`, remainingMs: firstMs - elapsed, elapsedMs: elapsed, statusText: copy.statusTitleEn, displayIndex: 1 };
+      return { phase: 'first_half', label: `前半 残り ${formatClock(firstMs - elapsed)}`, remainingMs: firstMs - elapsed, elapsedMs: elapsed, statusText: copy.statusTitleEn, displayIndex: 1 };
     }
     if (elapsed < firstMs + halfMs) {
       const remaining = firstMs + halfMs - elapsed;
-      return { phase: 'half_time', label: `ハーフタイム ${formatClock(remaining)}`, remainingMs: remaining, elapsedMs: elapsed - firstMs, statusText: 'HALF TIME', displayIndex: 2 };
+      return { phase: 'half_time', label: `ハーフタイム 残り ${formatClock(remaining)}`, remainingMs: remaining, elapsedMs: elapsed - firstMs, statusText: 'HALF TIME', displayIndex: 2 };
     }
     if (elapsed < firstMs + halfMs + secondMs) {
       const secondElapsed = elapsed - firstMs - halfMs;
-      return { phase: 'second_half', label: `後半 ${formatClock(secondElapsed)}`, remainingMs: firstMs + halfMs + secondMs - elapsed, elapsedMs: secondElapsed, statusText: copy.statusTitleEn, displayIndex: 3 };
+      const secondRemaining = firstMs + halfMs + secondMs - elapsed;
+      return { phase: 'second_half', label: `後半 残り ${formatClock(secondRemaining)}`, remainingMs: secondRemaining, elapsedMs: secondElapsed, statusText: copy.statusTitleEn, displayIndex: 3 };
     }
     return { phase: 'full_time', label: 'FULL TIME', remainingMs: 0, elapsedMs: secondMs, statusText: 'FULL TIME', displayIndex: 4 };
   }
 
-  const remainingMs = Math.max(0, endMs - nowMs);
+  const consultationEndMs = safeSettings.mode === 'consultation' ? startMs + 60 * 60_000 : endMs;
+  const remainingMs = Math.max(0, consultationEndMs - nowMs);
   const phase = remainingMs > 0 ? 'active' : 'ended';
-  const label = phase === 'ended' ? (safeSettings.mode === 'consultation' ? '相談終了' : '決着') : `${copy.timerPrefix} ${formatLongCountdown(remainingMs)}`;
+  const countdownText = safeSettings.mode === 'consultation' ? formatClock(remainingMs) : formatLongCountdown(remainingMs);
+  const label = phase === 'ended' ? (safeSettings.mode === 'consultation' ? '相談終了' : '決着') : `${copy.timerPrefix} ${countdownText}`;
   return { phase, label, remainingMs, elapsedMs: Math.max(0, nowMs - startMs), statusText: copy.statusTitleEn, displayIndex: 1 };
+}
+
+function formatKickoffTime(ms) {
+  const date = new Date(ms);
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 function formatClock(ms) {
@@ -489,7 +499,7 @@ export function getPeriodContext(settings, nowMs = Date.now()) {
     const modeTime = getModeTimeContext(safeSettings, nowMs);
     const copy = MODE_COPY.consultation;
     const startMs = new Date(safeSettings.startAt).getTime();
-    const endMs = new Date(safeSettings.endAt).getTime();
+    const endMs = startMs + 60 * 60_000;
     const current = makeModePeriod(safeSettings, modeTime.phase, modeTime.statusText, copy.statusTitleJa, copy.descriptionEn, copy.descriptionJa, startMs, endMs);
     return { currentPeriodIndex: 1, nextPeriodIndex: 1, current, next: current, periodDurationMs: Math.max(1, endMs - startMs), remainingMs: modeTime.remainingMs, modeTime };
   }
