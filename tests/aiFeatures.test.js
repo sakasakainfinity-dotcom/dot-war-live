@@ -16,7 +16,7 @@ test('detectCommentLanguage follows ja/en/skip rules', () => {
 });
 
 test('isGameCommandComment catches command formats', () => {
-  assert.equal(isGameCommandComment('R'), true);
+  assert.equal(isGameCommandComment('B'), true);
   assert.equal(isGameCommandComment('A place 45'), true);
   assert.equal(isGameCommandComment('爆弾'), true);
   assert.equal(isGameCommandComment('No way red team comes back from this'), false);

@@ -27,8 +27,8 @@ export function buildAnnouncementContext(gameState) {
   });
 
   return {
-    topicTitleJa: gameState?.topicTitleJa || 'Dot War Live',
-    topicTitleEn: gameState?.topicTitleEn || 'Dot War Live',
+    topicTitleJa: gameState?.topicTitleJa || 'Fan War Live',
+    topicTitleEn: gameState?.topicTitleEn || 'Fan War Live',
     currentPeriodKey: gameState?.currentPeriodKey || 'normal',
     currentPeriodNameJa: gameState?.currentPeriodNameJa || '通常フェーズ',
     currentPeriodNameEn: gameState?.currentPeriodNameEn || 'Normal',

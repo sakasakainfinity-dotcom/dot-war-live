@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Dot War Live HUD',
-  description: 'Live battle overlay HUD',
+  title: 'Fan War Live HUD',
+  description: 'Live A/B fan war overlay HUD',
 };
 
 export default function RootLayout({ children }) {

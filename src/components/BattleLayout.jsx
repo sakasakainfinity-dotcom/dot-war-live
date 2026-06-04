@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getPeriodContext, readLiveSettings } from '../lib/liveSettings';
+import { getModeTimeContext, getPeriodContext, readLiveSettings } from '../lib/liveSettings';
 import { detectCommentLanguage } from '../lib/ai/comment-language';
 import { shouldUseCommentForAiReaction } from '../lib/ai/comment-filter';
 import { createAiReactionQueue } from '../lib/ai/comment-reaction-queue';
@@ -15,21 +15,21 @@ import { BgmController } from './overlay/BgmController';
 const BOARD_ROWS = 10;
 const BOARD_COLS = 20;
 const COMMAND_EFFECTS = {
-  B: { blueDelta: 1, redDelta: 0 },
-  '3B': { blueDelta: 3, redDelta: 0 },
-  '5B': { blueDelta: 0, redDelta: -3 },
-  R: { blueDelta: 0, redDelta: 1 },
-  '3R': { blueDelta: 0, redDelta: 3 },
-  '5R': { blueDelta: -3, redDelta: 0 },
+  A: { blueDelta: 1, redDelta: 0 },
+  '3A': { blueDelta: 3, redDelta: 0 },
+  '5A': { blueDelta: 0, redDelta: -3 },
+  B: { blueDelta: 0, redDelta: 1 },
+  '3B': { blueDelta: 0, redDelta: 3 },
+  '5B': { blueDelta: -3, redDelta: 0 },
 };
 
 const COMMANDS = [
-  { code: 'B', team: 'blue', labelEn: '“B” Vote Blue', labelJa: '青へ1票' },
-  { code: '3B', team: 'blue', labelEn: '$3 or ¥300 + “B”', labelJa: '青へ3票' },
-  { code: '5B', team: 'blue', labelEn: '$5 or ¥500 + “B”', labelJa: '赤へ攻撃×3💣' },
-  { code: 'R', team: 'red', labelEn: '“R” Vote Red', labelJa: '赤へ1票' },
-  { code: '3R', team: 'red', labelEn: '$3 or ¥300 + “R”', labelJa: '赤へ3票' },
-  { code: '5R', team: 'red', labelEn: '$5 or ¥500 + “R”', labelJa: '青へ攻撃×3💣' },
+  { code: 'A', team: 'blue', labelEn: '“A” Vote Blue', labelJa: 'Aで青へ投票' },
+  { code: '3A', team: 'blue', labelEn: '$3 or ¥300 + “A”', labelJa: '“A” Vote Blue ×3' },
+  { code: '5A', team: 'blue', labelEn: '$5 or ¥500 + “A”', labelJa: '“A” Attack Red ×3💣' },
+  { code: 'B', team: 'red', labelEn: '“B” Vote Red', labelJa: 'Bで赤へ投票' },
+  { code: '3B', team: 'red', labelEn: '$3 or ¥300 + “B”', labelJa: '“B” Vote Red ×3' },
+  { code: '5B', team: 'red', labelEn: '$5 or ¥500 + “B”', labelJa: '“B” Attack Blue ×3💣' },
 ];
 const HUD_UPDATE_RULES = {
   marathon: {
@@ -44,6 +44,24 @@ const HUD_UPDATE_RULES = {
   },
 };
 const COMMENT_POLL_INTERVAL_MS = 60_000;
+
+const MODE_STATUS_COPY = {
+  soccer: {
+    title: 'SOCCER FAN WAR',
+    descriptionEn: 'Comment A or B to support your team.',
+    descriptionJa: 'A or Bで応援チームに投票！',
+  },
+  war: {
+    title: 'A/B FAN WAR',
+    descriptionEn: 'Comment A or B to join the war.',
+    descriptionJa: 'A or Bであなたの派閥に投票！',
+  },
+  consultation: {
+    title: 'A/B CONSULTATION',
+    descriptionEn: 'Comment A or B to vote your opinion.',
+    descriptionJa: 'A or Bで意見を投票！',
+  },
+};
 
 function formatCountdown(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -141,6 +159,7 @@ export function BattleLayout() {
   }, []);
 
   const periodContext = getPeriodContext(settings, nowMs);
+  const modeTime = periodContext.modeTime ?? getModeTimeContext(settings, nowMs);
   const activePeriod = periodContext.current;
   const hudMode = resolveHudMode(settings);
   const hudRule = HUD_UPDATE_RULES[hudMode] ?? HUD_UPDATE_RULES.marathon;
@@ -215,7 +234,7 @@ export function BattleLayout() {
         redScore: redCells,
         blueScore: blueCells,
         periodTitle: activePeriod?.title || 'NORMAL',
-        topicTitle: `${settings.teamA_en} vs ${settings.teamB_en}`,
+        topicTitle: settings.title || `${settings.sideAName} vs ${settings.sideBName}`,
       }),
     }).catch(() => null);
 
@@ -235,7 +254,7 @@ export function BattleLayout() {
       if (process.env.NODE_ENV !== 'production') console.log('[AI generation success]', { messageId: item.id, reply: next.replyText });
       if (process.env.NODE_ENV !== 'production') console.log('[speech queued]', { queueSize: aiQueueRef.current.size });
     }
-  }, [activePeriod?.title, blueCells, redCells, settings.aiReplyEnabled, settings.teamA_en, settings.teamB_en]);
+  }, [activePeriod?.title, blueCells, redCells, settings.aiReplyEnabled, settings.sideAName, settings.sideBName, settings.title]);
 
   const applyCommand = useCallback(
     ({ commandCode, user, text, amount = '', messageId = '', authorChannelId = '' }) => {
@@ -374,8 +393,8 @@ export function BattleLayout() {
       }
       if (process.env.NODE_ENV !== 'production') console.log('[announcement scheduled]', { period: activePeriod?.periodKey });
       const ctx = buildAnnouncementContext({
-        topicTitleJa: `${settings.teamA_ja} vs ${settings.teamB_ja}`,
-        topicTitleEn: `${settings.teamA_en} vs ${settings.teamB_en}`,
+        topicTitleJa: settings.title || `${settings.sideALabel} vs ${settings.sideBLabel}`,
+        topicTitleEn: settings.title || `${settings.sideAName} vs ${settings.sideBName}`,
         currentPeriodKey: activePeriod?.periodKey,
         currentPeriodNameJa: activePeriod?.titleJa || activePeriod?.title,
         currentPeriodNameEn: activePeriod?.title,
@@ -384,10 +403,10 @@ export function BattleLayout() {
         redScore: redCells,
         blueScore: blueCells,
         minutesLeft: Math.max(1, Math.ceil(periodContext.remainingMs / 60_000)),
-        teamRedJa: settings.teamB_ja,
-        teamBlueJa: settings.teamA_ja,
-        teamRedEn: settings.teamB_en,
-        teamBlueEn: settings.teamA_en,
+        teamRedJa: settings.sideBLabel,
+        teamBlueJa: settings.sideALabel,
+        teamRedEn: settings.sideBName,
+        teamBlueEn: settings.sideAName,
       });
       const tokyoNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
       const language = announcementQueueRef.current.chooseAnnouncementLanguage(tokyoNow);
@@ -403,19 +422,20 @@ export function BattleLayout() {
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [activePeriod?.descriptionEn, activePeriod?.descriptionJa, activePeriod?.periodKey, activePeriod?.title, activePeriod?.titleJa, blueCells, periodContext.remainingMs, redCells, settings.announcementConfig?.enabled, settings.announcementConfig?.intervalSec, settings.announcementConfig?.minCooldownSec, settings.autoAnnouncementEnabled, settings.teamA_en, settings.teamA_ja, settings.teamB_en, settings.teamB_ja]);
+  }, [activePeriod?.descriptionEn, activePeriod?.descriptionJa, activePeriod?.periodKey, activePeriod?.title, activePeriod?.titleJa, blueCells, periodContext.remainingMs, redCells, settings.announcementConfig?.enabled, settings.announcementConfig?.intervalSec, settings.announcementConfig?.minCooldownSec, settings.autoAnnouncementEnabled, settings.sideAName, settings.sideALabel, settings.sideBName, settings.sideBLabel, settings.title]);
 
-  const blueVotes = comments.filter((comment) => ['B', '3B', '5B'].includes(comment.commandCode)).length;
-  const redVotes = comments.filter((comment) => ['R', '3R', '5R'].includes(comment.commandCode)).length;
-  const blueBlasts = comments.filter((comment) => comment.commandCode === '5B').length;
-  const redBlasts = comments.filter((comment) => comment.commandCode === '5R').length;
+  const blueVotes = comments.filter((comment) => ['A', '3A', '5A'].includes(comment.commandCode)).length;
+  const redVotes = comments.filter((comment) => ['B', '3B', '5B'].includes(comment.commandCode)).length;
+  const blueBlasts = comments.filter((comment) => comment.commandCode === '5A').length;
+  const redBlasts = comments.filter((comment) => comment.commandCode === '5B').length;
 
   const latestPaid = latestPaidComments;
   const ranking = topSupporters;
+  const modeCopy = MODE_STATUS_COPY[settings.mode] ?? MODE_STATUS_COPY.war;
 
   const updateCountdownMs = Math.max(0, updateCycleMs - Math.max(0, nowMs - updateCycleStartedAtMs));
   const updateRemain = formatCountdown(updateCountdownMs);
-  const periodRemain = formatCountdown(periodContext.remainingMs);
+  const periodRemain = modeTime.label;
   const isUpdateUrgent = updateCountdownMs <= 5000;
 
   return (
@@ -424,17 +444,17 @@ export function BattleLayout() {
       <div className="hud-stage war-stage">
         <header className="war-header panel">
           <div className="war-period-block">
-            <p className="war-status-now">NOW: {activePeriod?.title ?? 'NORMAL'}</p>
-            <p className="war-status-sub-en">{activePeriod?.descriptionEn ?? 'Standard battle rules.'}</p>
-            <p className="war-status-sub-ja">{activePeriod?.descriptionJa ?? '通常ルールのバトルです。'}</p>
+            <p className="war-status-now">Fan War Live · {modeCopy.title}</p>
+            <p className="war-status-sub-en">{modeCopy.descriptionEn}</p>
+            <p className="war-status-sub-ja">{modeCopy.descriptionJa}</p>
           </div>
           <div className="war-title-block">
-            <p className="war-title-en"><span className="team-blue">{settings.teamA_en}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_en}</span></p>
-            <p className="war-title-ja"><span className="team-blue">{settings.teamA_ja}</span><span className="team-vs"> vs </span><span className="team-red">{settings.teamB_ja}</span></p>
+            <p className="war-title-en">{settings.title || `${settings.sideAName} vs ${settings.sideBName}`}</p>
+            <p className="war-title-ja"><span className="team-blue">A = {settings.sideALabel}</span><span className="team-vs"> / </span><span className="team-red">B = {settings.sideBLabel}</span></p>
           </div>
           <div className="war-status-block">
-            <p className="war-status-period">{`PERIOD ${periodContext.currentPeriodIndex} / 48`}</p>
-            <p className="war-status-period-remain">{`TIME LEFT ${periodRemain}`}</p>
+            <p className="war-status-period">{periodRemain}</p>
+            <p className="war-status-period-remain">{settings.mode === 'soccer' && settings.competitionName ? settings.competitionName : `A = ${settings.sideAName} / B = ${settings.sideBName}`}</p>
             <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p>
           </div>
         </header>
@@ -505,8 +525,8 @@ export function BattleLayout() {
           </section>
 
           <section className="vote-note panel">
-            <p className="vote-en">Just Comment "B" or "R" to Vote! Only B or R!</p>
-            <p className="vote-ja">投票は「B」か「R」を打つだけ！（BまたはRの1文字のみ！）</p>
+            <p className="vote-en">{modeCopy.descriptionEn}</p>
+            <p className="vote-ja">{modeCopy.descriptionJa} コメントは A または B のみ有効</p>
           </section>
         </div>
         <CommandBar commands={COMMANDS} />

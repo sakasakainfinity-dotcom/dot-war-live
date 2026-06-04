@@ -30,7 +30,7 @@ test('parse JPY 300 super chat as triple vote', () => {
 test('parse JPY 500 super chat as triple bomb', () => {
   const item = {
     snippet: {
-      displayMessage: 'R',
+      displayMessage: 'B',
       superChatDetails: {
         amountMicros: '500000000',
         currency: 'JPY'
@@ -43,14 +43,14 @@ test('parse JPY 500 super chat as triple bomb', () => {
 test('parse USD 3 super chat as triple vote', () => {
   const item = {
     snippet: {
-      displayMessage: 'R',
+      displayMessage: 'B',
       superChatDetails: {
         amountMicros: '3000000',
         currency: 'USD'
       }
     }
   };
-  assert.deepEqual(parseSuperChat(item), { type: 'vote', team: 'R', value: 3 });
+  assert.deepEqual(parseSuperChat(item), { type: 'vote', team: 'B', value: 3 });
 });
 
 test('parse USD 5 super chat as triple bomb', () => {
@@ -63,13 +63,13 @@ test('parse USD 5 super chat as triple bomb', () => {
       }
     }
   };
-  assert.deepEqual(parseSuperChat(item), { type: 'bomb', target: 'R', value: 3 });
+  assert.deepEqual(parseSuperChat(item), { type: 'bomb', target: 'B', value: 3 });
 });
 
-test('ignore super chat when displayMessage is not A/R', () => {
+test('ignore super chat when displayMessage is not A/B', () => {
   const item = {
     snippet: {
-      displayMessage: 'B',
+      displayMessage: 'R',
       superChatDetails: {
         amountMicros: '300000000',
         currency: 'JPY'
