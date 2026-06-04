@@ -16,7 +16,7 @@ No babyish anime-like tone.`;
 
 export function buildReactionUserPrompt(input) {
   return [
-    `topic: ${input.topicTitle || 'Dot War Live'}`,
+    `topic: ${input.topicTitle || 'Fan War Live'}`,
     `match: ${input.matchTitle || ''}`,
     `score: red=${input.redScore ?? 0}, blue=${input.blueScore ?? 0}`,
     `period: ${input.periodTitle || ''}`,

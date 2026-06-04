@@ -50,7 +50,7 @@ export function parseSuperChat(item) {
   if (!details) return null;
 
   const text = `${snippet?.displayMessage ?? ""}`.trim().toUpperCase();
-  if (text !== "A" && text !== "R") return null;
+  if (text !== "A" && text !== "B") return null;
 
   const currency = `${details?.currency ?? ""}`.toUpperCase();
   const rules = SUPER_CHAT_RULES[currency];
@@ -62,7 +62,7 @@ export function parseSuperChat(item) {
   if (amount === rules.bomb) {
     return {
       type: "bomb",
-      target: text === "A" ? "R" : "A",
+      target: text === "A" ? "B" : "A",
       value: 3
     };
   }

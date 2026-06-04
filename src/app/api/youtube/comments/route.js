@@ -36,12 +36,12 @@ function parseAction(commandCode) {
     return { actionType: '', actionTarget: '', actionValue: '' };
   }
 
-  if (commandCode === 'B') return { actionType: 'vote', actionTarget: 'blue', actionValue: '1' };
-  if (commandCode === 'R') return { actionType: 'vote', actionTarget: 'red', actionValue: '1' };
-  if (commandCode === '3B') return { actionType: 'vote', actionTarget: 'blue', actionValue: '3' };
-  if (commandCode === '3R') return { actionType: 'vote', actionTarget: 'red', actionValue: '3' };
-  if (commandCode === '5B') return { actionType: 'attack', actionTarget: 'red', actionValue: '3' };
-  if (commandCode === '5R') return { actionType: 'attack', actionTarget: 'blue', actionValue: '3' };
+  if (commandCode === 'A') return { actionType: 'vote', actionTarget: 'blue', actionValue: '1' };
+  if (commandCode === 'B') return { actionType: 'vote', actionTarget: 'red', actionValue: '1' };
+  if (commandCode === '3A') return { actionType: 'vote', actionTarget: 'blue', actionValue: '3' };
+  if (commandCode === '3B') return { actionType: 'vote', actionTarget: 'red', actionValue: '3' };
+  if (commandCode === '5A') return { actionType: 'attack', actionTarget: 'red', actionValue: '3' };
+  if (commandCode === '5B') return { actionType: 'attack', actionTarget: 'blue', actionValue: '3' };
 
   return { actionType: '', actionTarget: '', actionValue: '' };
 }

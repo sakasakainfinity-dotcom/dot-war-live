@@ -11,8 +11,8 @@ const SUPER_CHAT_RULES = {
 
 export function parseStrictTeamVote(text = '') {
   const normalized = `${text}`.trim();
+  if (/^a$/i.test(normalized)) return { normalized, team: 'A' };
   if (/^b$/i.test(normalized)) return { normalized, team: 'B' };
-  if (/^r$/i.test(normalized)) return { normalized, team: 'R' };
   return { normalized, team: '' };
 }
 
