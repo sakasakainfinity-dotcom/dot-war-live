@@ -432,11 +432,146 @@ export function BattleLayout() {
   const latestPaid = latestPaidComments;
   const ranking = topSupporters;
   const modeCopy = MODE_STATUS_COPY[settings.mode] ?? MODE_STATUS_COPY.war;
+  const totalVotes = blueVotes + redVotes;
+  const blueVotePct = totalVotes > 0 ? Math.round((blueVotes / totalVotes) * 100) : 50;
+  const redVotePct = totalVotes > 0 ? 100 - blueVotePct : 50;
+  const blueSupportPct = Math.round((blueCells / (BOARD_ROWS * BOARD_COLS)) * 100);
+  const redSupportPct = 100 - blueSupportPct;
 
   const updateCountdownMs = Math.max(0, updateCycleMs - Math.max(0, nowMs - updateCycleStartedAtMs));
   const updateRemain = formatCountdown(updateCountdownMs);
   const periodRemain = modeTime.label;
   const isUpdateUrgent = updateCountdownMs <= 5000;
+
+  if (settings.mode === 'soccer') {
+    return (
+      <main className="hud-root soccer-root">
+        <BgmController settings={settings} currentPeriod={activePeriod} />
+        <div className="hud-stage soccer-stage">
+          <header className="soccer-header panel">
+            <div>
+              <p className="soccer-kicker">Fan War Live · SOCCER GAME</p>
+              <p className="soccer-competition">{settings.competitionName || 'LIVE SUPPORT MATCH'}</p>
+            </div>
+            <div className="soccer-scoreboard">
+              <div className="soccer-team soccer-team-blue">
+                <span className="soccer-team-emoji">{settings.soccerTeamAEmoji}</span>
+                <strong>{settings.sideALabel}</strong>
+              </div>
+              <div className="soccer-score-center">
+                <span>{blueVotes}</span>
+                <small>SUPPORT</small>
+                <span>{redVotes}</span>
+              </div>
+              <div className="soccer-team soccer-team-red">
+                <strong>{settings.sideBLabel}</strong>
+                <span className="soccer-team-emoji">{settings.soccerTeamBEmoji}</span>
+              </div>
+            </div>
+            <div className="soccer-clock">
+              <strong>{periodRemain}</strong>
+              <span>{settings.title || `${settings.sideAName} vs ${settings.sideBName}`}</span>
+            </div>
+          </header>
+
+          <section className="soccer-pitch panel">
+            <div className="soccer-pitch-line soccer-pitch-line-left" />
+            <div className="soccer-pitch-line soccer-pitch-line-right" />
+            <div className="soccer-center-circle" />
+            <div className="soccer-goal soccer-goal-left">{settings.sideALabel}</div>
+            <div className="soccer-goal soccer-goal-right">{settings.sideBLabel}</div>
+            <BattleGrid grid={grid} />
+            <div className="soccer-momentum-card soccer-momentum-blue">
+              <span>{settings.sideALabel}</span>
+              <strong>{blueSupportPct}%</strong>
+            </div>
+            <div className="soccer-momentum-card soccer-momentum-red">
+              <span>{settings.sideBLabel}</span>
+              <strong>{redSupportPct}%</strong>
+            </div>
+          </section>
+
+          <section className="soccer-bottom-row">
+            <article className="panel soccer-instructions">
+              <h3>CHEER COMMAND</h3>
+              <p>A = {settings.sideALabel} / B = {settings.sideBLabel}</p>
+              <p>{modeCopy.descriptionJa} コメントは A または B のみ有効</p>
+            </article>
+            <article className="panel soccer-feed">
+              <h3>LATEST PAID COMMENTS</h3>
+              <div className="fixed-list soccer-fixed-list">
+                {latestPaid.length === 0 ? <p className="muted">No paid comments yet.</p> : null}
+                {latestPaid.map((comment) => (
+                  <p key={comment.messageId} className="feed-line">
+                    <strong>{comment.userName}</strong>
+                    <span className="price">{comment.amountLabel}</span>
+                    <span className="ellipsis">{comment.messageText}</span>
+                  </p>
+                ))}
+              </div>
+            </article>
+          </section>
+          <CommandBar commands={COMMANDS} />
+        </div>
+      </main>
+    );
+  }
+
+  if (settings.mode === 'consultation') {
+    return (
+      <main className="hud-root consultation-root">
+        <BgmController settings={settings} currentPeriod={activePeriod} />
+        <div className="hud-stage consultation-stage">
+          <header className="consultation-header panel">
+            <p className="consultation-kicker">Fan War Live · CONSULTATION GAME</p>
+            <h1>{settings.title}</h1>
+            <p>{settings.consultationBody || 'A or B であなたの意見を投票してください。'}</p>
+            <strong>{periodRemain}</strong>
+          </header>
+
+          <section className="consultation-choice-grid">
+            <article className="panel consultation-choice consultation-choice-a">
+              <span className="consultation-choice-label">A</span>
+              <h2>{settings.sideAName}</h2>
+              <p>{settings.sideADescription}</p>
+              <div className="consultation-bar-shell"><div className="consultation-bar consultation-bar-a" style={{ width: `${blueVotePct}%` }} /></div>
+              <strong>{blueVotePct}% · {blueVotes} votes</strong>
+            </article>
+            <article className="panel consultation-choice consultation-choice-b">
+              <span className="consultation-choice-label">B</span>
+              <h2>{settings.sideBName}</h2>
+              <p>{settings.sideBDescription}</p>
+              <div className="consultation-bar-shell"><div className="consultation-bar consultation-bar-b" style={{ width: `${redVotePct}%` }} /></div>
+              <strong>{redVotePct}% · {redVotes} votes</strong>
+            </article>
+          </section>
+
+          <section className="consultation-live-panel panel">
+            <div>
+              <h3>LIVE DECISION FLOW</h3>
+              <p>{modeCopy.descriptionEn}</p>
+              <p>{modeCopy.descriptionJa} コメントは A または B のみ有効</p>
+            </div>
+            <BattleGrid grid={grid} />
+            <div className="consultation-supporters">
+              <h3>TOP SUPPORTERS</h3>
+              <div className="fixed-list">
+                {ranking.length === 0 ? <p className="muted">No supporters yet.</p> : null}
+                {ranking.map((entry, index) => (
+                  <p key={entry.userChannelId} className="rank-line">
+                    <strong>#{index + 1}</strong>
+                    <span className="ellipsis">{entry.userName}</span>
+                    <span>{entry.amountLabel}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          </section>
+          <CommandBar commands={COMMANDS} />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="hud-root">
