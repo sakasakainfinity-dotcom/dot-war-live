@@ -473,8 +473,8 @@ export function BattleLayout() {
           </aside>
 
           <section className="battle-main panel">
-            <div className="team-side-label team-side-left">BLUE</div>
-            <div className="team-side-label team-side-right">RED</div>
+            <div className="team-side-label team-side-left">{settings.sideAName}</div>
+            <div className="team-side-label team-side-right">{settings.sideBName}</div>
             <BattleGrid grid={grid} />
           </section>
 
