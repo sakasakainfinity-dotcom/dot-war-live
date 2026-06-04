@@ -43,10 +43,83 @@ function startOfNextHour() {
   return next;
 }
 
-export function createDefaultLiveSettings() {
-  const startAt = startOfNextHour();
-  const endAt = new Date(startAt.getTime() + 24 * 60 * 60 * 1000);
+const MODE_VALUES = ['soccer', 'war', 'consultation'];
 
+function makeDefaultPeriodDefinitions() {
+  return FIXED_PERIOD_SLOTS.map((slot, index) => ({
+    id: slot.slotKey,
+    slotIndex: index,
+    periodKey: slot.periodKey,
+    title: slot.title,
+    titleJa: slot.titleJa,
+    descriptionEn: slot.descriptionEn,
+    descriptionJa: slot.descriptionJa,
+    bgmTrackId: slot.bgmTrackId,
+    announcementStyle: slot.announcementStyle,
+    enabled: true,
+  }));
+}
+
+export function createDefaultModeProfile(mode, anchorStartAt) {
+  const startAt = anchorStartAt ? new Date(anchorStartAt) : startOfNextHour();
+  const safeStartAt = Number.isNaN(startAt.getTime()) ? startOfNextHour() : startAt;
+  const startIso = safeStartAt.toISOString();
+
+  if (mode === 'soccer') {
+    const endAt = new Date(safeStartAt.getTime() + 115 * 60 * 1000).toISOString();
+    return {
+      mode: 'soccer',
+      title: 'BLUE FC vs RED FC',
+      sideAName: 'BLUE FC',
+      sideBName: 'RED FC',
+      sideALabel: 'BLUE',
+      sideBLabel: 'RED',
+      sideADescription: '青チーム',
+      sideBDescription: '赤チーム',
+      soccerTeamAEmoji: '🔵',
+      soccerTeamBEmoji: '🔴',
+      competitionName: '',
+      consultationBody: '',
+      durationMinutes: 115,
+      soccerFirstHalfMinutes: 50,
+      soccerHalfTimeMinutes: 15,
+      soccerSecondHalfMinutes: 50,
+      currentPhase: 'first_half',
+      streamDate: startIso.slice(0, 10),
+      startAt: startIso,
+      endAt,
+      periodDefinitions: makeDefaultPeriodDefinitions(),
+    };
+  }
+
+  if (mode === 'consultation') {
+    const endAt = new Date(safeStartAt.getTime() + 60 * 60 * 1000).toISOString();
+    return {
+      mode: 'consultation',
+      title: '相談タイトル',
+      sideAName: 'A案',
+      sideBName: 'B案',
+      sideALabel: 'A案',
+      sideBLabel: 'B案',
+      sideADescription: 'A案の説明',
+      sideBDescription: 'B案の説明',
+      soccerTeamAEmoji: '🔵',
+      soccerTeamBEmoji: '🔴',
+      competitionName: '',
+      consultationBody: '',
+      durationMinutes: 60,
+      soccerFirstHalfMinutes: 50,
+      soccerHalfTimeMinutes: 15,
+      soccerSecondHalfMinutes: 50,
+      currentPhase: 'active',
+      streamDate: startIso.slice(0, 10),
+      startAt: startIso,
+      endAt,
+      periodDefinitions: makeDefaultPeriodDefinitions(),
+    };
+  }
+
+  const endAt = new Date(safeStartAt.getTime() + 24 * 60 * 60 * 1000).toISOString();
   return {
     mode: 'war',
     title: 'CITY vs COUNTRY',
@@ -65,13 +138,22 @@ export function createDefaultLiveSettings() {
     soccerHalfTimeMinutes: 15,
     soccerSecondHalfMinutes: 50,
     currentPhase: 'active',
-    streamDate: startAt.toISOString().slice(0, 10),
-    teamA_en: 'CITY',
-    teamB_en: 'COUNTRY',
+    streamDate: startIso.slice(0, 10),
+    startAt: startIso,
+    endAt,
+    periodDefinitions: makeDefaultPeriodDefinitions(),
+  };
+}
+
+function createBaseDefaultLiveSettings() {
+  const profile = createDefaultModeProfile('war');
+
+  return {
+    ...profile,
+    teamA_en: profile.sideAName,
+    teamB_en: profile.sideBName,
     teamA_ja: '都会',
     teamB_ja: '田舎',
-    startAt: startAt.toISOString(),
-    endAt: endAt.toISOString(),
     autoNarrationEnabled: true,
     autoAnnouncementEnabled: true,
     aiReplyEnabled: true,
@@ -108,18 +190,17 @@ export function createDefaultLiveSettings() {
       maxSeconds: 8,
       summarizeLongText: true,
     },
-    periodDefinitions: FIXED_PERIOD_SLOTS.map((slot, index) => ({
-      id: slot.slotKey,
-      slotIndex: index,
-      periodKey: slot.periodKey,
-      title: slot.title,
-      titleJa: slot.titleJa,
-      descriptionEn: slot.descriptionEn,
-      descriptionJa: slot.descriptionJa,
-      bgmTrackId: slot.bgmTrackId,
-      announcementStyle: slot.announcementStyle,
-      enabled: true,
-    })),
+  };
+}
+
+export function createDefaultLiveSettings() {
+  const defaults = createBaseDefaultLiveSettings();
+  return {
+    ...defaults,
+    modeProfiles: MODE_VALUES.reduce((profiles, mode) => ({
+      ...profiles,
+      [mode]: normalizeModeProfile(createDefaultModeProfile(mode, defaults.startAt), mode),
+    }), {}),
   };
 }
 
@@ -158,6 +239,51 @@ function normalizeText(value, fallback) {
   return `${value ?? fallback}`.trim() || fallback;
 }
 
+
+export function normalizeModeProfile(raw, mode, anchorStartAt) {
+  const fallback = createDefaultModeProfile(mode, anchorStartAt);
+  const safeMode = MODE_VALUES.includes(raw?.mode) ? raw.mode : mode;
+  const startAt = normalizeDate(raw?.startAt, fallback.startAt);
+  const defaultDuration = safeMode === 'consultation' ? 60 : safeMode === 'soccer' ? 115 : 24 * 60;
+  const fallbackEndAt = addMinutes(startAt, defaultDuration);
+  const endAt = normalizeDate(raw?.endAt, raw?.durationMinutes ? addMinutes(startAt, Number(raw.durationMinutes)) : fallbackEndAt);
+  const durationMinutes = inferDurationMinutes(raw, fallback, startAt, endAt, safeMode);
+  const sideAName = normalizeText(raw?.sideAName ?? raw?.teamA_en, fallback.sideAName);
+  const sideBName = normalizeText(raw?.sideBName ?? raw?.teamB_en, fallback.sideBName);
+  const sideALabel = normalizeText(raw?.sideALabel ?? raw?.teamA_ja ?? sideAName, sideAName);
+  const sideBLabel = normalizeText(raw?.sideBLabel ?? raw?.teamB_ja ?? sideBName, sideBName);
+  const rawDefinitions = Array.isArray(raw?.periodDefinitions) ? raw.periodDefinitions : [];
+  const normalizedDefinitions = fallback.periodDefinitions.map((fallbackDefinition, index) => normalizePeriodDefinition(rawDefinitions[index], fallbackDefinition, index));
+
+  return {
+    mode: safeMode,
+    title: normalizeText(raw?.title, `${sideAName} vs ${sideBName}`),
+    sideAName,
+    sideBName,
+    sideALabel,
+    sideBLabel,
+    sideADescription: normalizeText(raw?.sideADescription, fallback.sideADescription),
+    sideBDescription: normalizeText(raw?.sideBDescription, fallback.sideBDescription),
+    soccerTeamAEmoji: normalizeText(raw?.soccerTeamAEmoji, fallback.soccerTeamAEmoji),
+    soccerTeamBEmoji: normalizeText(raw?.soccerTeamBEmoji, fallback.soccerTeamBEmoji),
+    competitionName: `${raw?.competitionName ?? fallback.competitionName}`.trim(),
+    consultationBody: `${raw?.consultationBody ?? fallback.consultationBody}`.trim(),
+    durationMinutes,
+    soccerFirstHalfMinutes: normalizeNumber(raw?.soccerFirstHalfMinutes, fallback.soccerFirstHalfMinutes, 1, 120),
+    soccerHalfTimeMinutes: normalizeNumber(raw?.soccerHalfTimeMinutes, fallback.soccerHalfTimeMinutes, 0, 60),
+    soccerSecondHalfMinutes: normalizeNumber(raw?.soccerSecondHalfMinutes, fallback.soccerSecondHalfMinutes, 1, 120),
+    currentPhase: normalizeText(raw?.currentPhase, safeMode === 'soccer' ? 'first_half' : 'active'),
+    streamDate: `${raw?.streamDate ?? fallback.streamDate}`,
+    teamA_en: sideAName,
+    teamB_en: sideBName,
+    teamA_ja: sideALabel,
+    teamB_ja: sideBLabel,
+    startAt,
+    endAt,
+    periodDefinitions: normalizedDefinitions,
+  };
+}
+
 function addMinutes(iso, minutes) {
   const baseMs = new Date(iso).getTime();
   const safeBase = Number.isFinite(baseMs) ? baseMs : Date.now();
@@ -171,51 +297,22 @@ function inferDurationMinutes(raw, fallback, startAt, endAt, mode) {
 }
 
 export function normalizeLiveSettings(raw) {
-  const fallback = createDefaultLiveSettings();
-  const mode = ['soccer', 'war', 'consultation'].includes(raw?.mode) ? raw.mode : fallback.mode;
-  const startAt = normalizeDate(raw?.startAt, fallback.startAt);
-  const defaultDuration = mode === 'consultation' ? 60 : mode === 'soccer' ? 115 : 24 * 60;
-  const fallbackEndAt = addMinutes(startAt, defaultDuration);
-  const endAt = normalizeDate(raw?.endAt, raw?.durationMinutes ? addMinutes(startAt, Number(raw.durationMinutes)) : fallbackEndAt);
-  const durationMinutes = inferDurationMinutes(raw, fallback, startAt, endAt, mode);
+  const fallback = createBaseDefaultLiveSettings();
+  const mode = MODE_VALUES.includes(raw?.mode) ? raw.mode : fallback.mode;
+  const activeProfileRaw = { ...(raw?.modeProfiles?.[mode] ?? {}), ...raw, mode };
+  const activeProfile = normalizeModeProfile(activeProfileRaw, mode, fallback.startAt);
+  const modeProfiles = MODE_VALUES.reduce((profiles, profileMode) => {
+    const profileRaw = profileMode === mode ? activeProfile : raw?.modeProfiles?.[profileMode];
+    return {
+      ...profiles,
+      [profileMode]: normalizeModeProfile(profileRaw, profileMode, fallback.startAt),
+    };
+  }, {});
 
-  const sideAName = normalizeText(raw?.sideAName ?? raw?.teamA_en, fallback.sideAName);
-  const sideBName = normalizeText(raw?.sideBName ?? raw?.teamB_en, fallback.sideBName);
-  const sideALabel = normalizeText(raw?.sideALabel ?? raw?.teamA_ja ?? sideAName, sideAName);
-  const sideBLabel = normalizeText(raw?.sideBLabel ?? raw?.teamB_ja ?? sideBName, sideBName);
-  const title = normalizeText(raw?.title, `${sideAName} vs ${sideBName}`);
-
-  const rawDefinitions = Array.isArray(raw?.periodDefinitions) ? raw.periodDefinitions : [];
-  const normalizedDefinitions = fallback.periodDefinitions.map((fallbackDefinition, index) => normalizePeriodDefinition(rawDefinitions[index], fallbackDefinition, index));
-  const soccerFirstHalfMinutes = normalizeNumber(raw?.soccerFirstHalfMinutes, fallback.soccerFirstHalfMinutes, 1, 120);
-  const soccerHalfTimeMinutes = normalizeNumber(raw?.soccerHalfTimeMinutes, fallback.soccerHalfTimeMinutes, 0, 60);
-  const soccerSecondHalfMinutes = normalizeNumber(raw?.soccerSecondHalfMinutes, fallback.soccerSecondHalfMinutes, 1, 120);
+  modeProfiles[mode] = activeProfile;
 
   return {
-    mode,
-    title,
-    sideAName,
-    sideBName,
-    sideALabel,
-    sideBLabel,
-    sideADescription: normalizeText(raw?.sideADescription, fallback.sideADescription),
-    sideBDescription: normalizeText(raw?.sideBDescription, fallback.sideBDescription),
-    soccerTeamAEmoji: normalizeText(raw?.soccerTeamAEmoji, fallback.soccerTeamAEmoji),
-    soccerTeamBEmoji: normalizeText(raw?.soccerTeamBEmoji, fallback.soccerTeamBEmoji),
-    competitionName: `${raw?.competitionName ?? fallback.competitionName}`.trim(),
-    consultationBody: `${raw?.consultationBody ?? fallback.consultationBody}`.trim(),
-    durationMinutes,
-    soccerFirstHalfMinutes,
-    soccerHalfTimeMinutes,
-    soccerSecondHalfMinutes,
-    currentPhase: normalizeText(raw?.currentPhase, mode === 'soccer' ? 'first_half' : 'active'),
-    streamDate: `${raw?.streamDate ?? fallback.streamDate}`,
-    teamA_en: sideAName,
-    teamB_en: sideBName,
-    teamA_ja: sideALabel,
-    teamB_ja: sideBLabel,
-    startAt,
-    endAt,
+    ...activeProfile,
     autoNarrationEnabled: normalizeBoolean(raw?.autoNarrationEnabled, fallback.autoNarrationEnabled),
     autoAnnouncementEnabled: normalizeBoolean(raw?.autoAnnouncementEnabled, fallback.autoAnnouncementEnabled),
     aiReplyEnabled: normalizeBoolean(raw?.aiReplyEnabled, fallback.aiReplyEnabled),
@@ -252,9 +349,10 @@ export function normalizeLiveSettings(raw) {
       maxSeconds: normalizeNumber(raw?.voiceConfig?.maxSeconds, fallback.voiceConfig.maxSeconds, 2, 20),
       summarizeLongText: normalizeBoolean(raw?.voiceConfig?.summarizeLongText, fallback.voiceConfig.summarizeLongText),
     },
-    periodDefinitions: normalizedDefinitions,
+    modeProfiles,
   };
 }
+
 
 export function readLiveSettings() {
   if (typeof window === 'undefined') return createDefaultLiveSettings();

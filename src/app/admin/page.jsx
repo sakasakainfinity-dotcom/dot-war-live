@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { createDefaultLiveSettings, normalizeLiveSettings, readLiveSettings, writeLiveSettings } from '../../lib/liveSettings';
+import { createDefaultLiveSettings, normalizeLiveSettings, normalizeModeProfile, readLiveSettings, writeLiveSettings } from '../../lib/liveSettings';
 
 const MODE_OPTIONS = [
   { value: 'soccer', label: 'サッカーモード' },
@@ -79,14 +79,10 @@ export default function AdminPage() {
 
   const setMode = (mode) => {
     setForm((prev) => {
-      const startAt = prev.startAt || new Date().toISOString();
-      if (mode === 'consultation') {
-        return normalizeLiveSettings({ ...prev, mode, durationMinutes: 60, endAt: addMinutes(startAt, 60), title: prev.title || '相談タイトル' });
-      }
-      if (mode === 'soccer') {
-        return normalizeLiveSettings({ ...prev, mode, durationMinutes: 115, endAt: addMinutes(startAt, 115), soccerFirstHalfMinutes: 50, soccerHalfTimeMinutes: 15, soccerSecondHalfMinutes: 50, title: prev.title || `${prev.sideAName} vs ${prev.sideBName}` });
-      }
-      return normalizeLiveSettings({ ...prev, mode, durationMinutes: 24 * 60, endAt: addMinutes(startAt, 24 * 60), title: prev.title || `${prev.sideAName} vs ${prev.sideBName}` });
+      const currentProfile = normalizeModeProfile(prev, prev.mode, prev.startAt);
+      const modeProfiles = { ...prev.modeProfiles, [prev.mode]: currentProfile };
+      const nextProfile = normalizeModeProfile(modeProfiles[mode], mode, prev.startAt);
+      return normalizeLiveSettings({ ...prev, ...nextProfile, mode, modeProfiles: { ...modeProfiles, [mode]: nextProfile } });
     });
   };
 
@@ -115,7 +111,8 @@ export default function AdminPage() {
   const updateBgmConfig = (key, value) => setForm((prev) => ({ ...prev, bgmConfig: { ...prev.bgmConfig, [key]: value } }));
 
   const handleSave = () => {
-    const normalized = normalizeLiveSettings(form);
+    const currentProfile = normalizeModeProfile(form, form.mode, form.startAt);
+    const normalized = normalizeLiveSettings({ ...form, ...currentProfile, modeProfiles: { ...form.modeProfiles, [form.mode]: currentProfile } });
     writeLiveSettings(normalized);
     setForm(normalized);
     setSavedAt(new Date().toLocaleString('ja-JP', { hour12: false }));
