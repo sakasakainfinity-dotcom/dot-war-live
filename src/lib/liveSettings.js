@@ -438,17 +438,17 @@ export function getModeTimeContext(settings, nowMs = Date.now()) {
     if (nowMs < startMs) {
       return { phase: 'pre_match', label: `${formatKickoffTime(startMs)} KICK OFF`, remainingMs: startMs - nowMs, elapsedMs: 0, statusText: 'KICK OFF', displayIndex: 0 };
     }
-    if (elapsed < firstMs) {
-      return { phase: 'first_half', label: `前半 残り ${formatClock(firstMs - elapsed)}`, remainingMs: firstMs - elapsed, elapsedMs: elapsed, statusText: copy.statusTitleEn, displayIndex: 1 };
+    if (elapsed <= firstMs) {
+      return { phase: 'first_half', label: `前半 ${formatClock(elapsed)}`, remainingMs: firstMs - elapsed, elapsedMs: elapsed, statusText: copy.statusTitleEn, displayIndex: 1 };
     }
     if (elapsed < firstMs + halfMs) {
       const remaining = firstMs + halfMs - elapsed;
       return { phase: 'half_time', label: `ハーフタイム 残り ${formatClock(remaining)}`, remainingMs: remaining, elapsedMs: elapsed - firstMs, statusText: 'HALF TIME', displayIndex: 2 };
     }
-    if (elapsed < firstMs + halfMs + secondMs) {
+    if (elapsed <= firstMs + halfMs + secondMs) {
       const secondElapsed = elapsed - firstMs - halfMs;
       const secondRemaining = firstMs + halfMs + secondMs - elapsed;
-      return { phase: 'second_half', label: `後半 残り ${formatClock(secondRemaining)}`, remainingMs: secondRemaining, elapsedMs: secondElapsed, statusText: copy.statusTitleEn, displayIndex: 3 };
+      return { phase: 'second_half', label: `後半 ${formatClock(secondElapsed)}`, remainingMs: secondRemaining, elapsedMs: secondElapsed, statusText: copy.statusTitleEn, displayIndex: 3 };
     }
     return { phase: 'full_time', label: 'FULL TIME', remainingMs: 0, elapsedMs: secondMs, statusText: 'FULL TIME', displayIndex: 4 };
   }

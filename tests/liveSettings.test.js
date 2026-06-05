@@ -41,14 +41,18 @@ test('normalizeLiveSettings keeps mode-specific names isolated', () => {
   assert.equal(switchedToWar.modeProfiles.soccer.sideAName, 'SAMURAI BLUE');
 });
 
-test('getModeTimeContext shows soccer kickoff and phase countdowns', () => {
+test('getModeTimeContext shows soccer kickoff, elapsed match clocks, and half-time countdowns', () => {
   const startAt = '2026-06-04T12:00:00.000Z';
   const settings = normalizeModeProfile({ startAt, soccerFirstHalfMinutes: 50, soccerHalfTimeMinutes: 15, soccerSecondHalfMinutes: 50 }, 'soccer', startAt);
 
   assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T11:55:00.000Z')).label, '12:00 KICK OFF');
-  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T12:00:00.000Z')).label, '前半 残り 50:00');
-  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T12:50:00.000Z')).label, 'ハーフタイム 残り 15:00');
-  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T13:05:00.000Z')).label, '後半 残り 50:00');
+  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T12:00:00.000Z')).label, '前半 00:00');
+  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T12:34:25.000Z')).label, '前半 34:25');
+  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T12:50:00.000Z')).label, '前半 50:00');
+  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T12:50:01.000Z')).label, 'ハーフタイム 残り 14:59');
+  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T13:05:00.000Z')).label, '後半 00:00');
+  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T13:39:25.000Z')).label, '後半 34:25');
+  assert.equal(getModeTimeContext(settings, Date.parse('2026-06-04T13:55:00.000Z')).label, '後半 50:00');
 });
 
 test('consultation mode always uses a 60 minute countdown window', () => {
