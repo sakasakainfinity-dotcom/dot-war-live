@@ -436,6 +436,7 @@ export function BattleLayout() {
   const updateRemain = formatCountdown(updateCountdownMs);
   const periodRemain = modeTime.label;
   const isUpdateUrgent = updateCountdownMs <= 5000;
+  const showUpdateCountdown = settings.mode !== 'soccer';
 
   return (
     <main className="hud-root">
@@ -454,7 +455,7 @@ export function BattleLayout() {
           <div className="war-status-block">
             <p className="war-status-period">{periodRemain}</p>
             <p className="war-status-period-remain">{settings.mode === 'soccer' && settings.competitionName ? settings.competitionName : `A = ${settings.sideAName} / B = ${settings.sideBName}`}</p>
-            <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p>
+            {showUpdateCountdown ? <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p> : null}
           </div>
         </header>
 
