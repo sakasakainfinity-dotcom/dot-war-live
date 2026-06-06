@@ -44,6 +44,7 @@ const HUD_UPDATE_RULES = {
   },
 };
 const COMMENT_POLL_INTERVAL_MS = 60_000;
+const FOOTBALL_SCORE_POLL_INTERVAL_MS = 30_000;
 
 const MODE_STATUS_COPY = {
   soccer: {
@@ -68,6 +69,55 @@ function formatCountdown(ms) {
   const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
   const ss = String(totalSec % 60).padStart(2, '0');
   return `${mm}:${ss}`;
+}
+
+function FootballScoreLine({ matchId }) {
+  const normalizedMatchId = `${matchId ?? ''}`.trim();
+  const [state, setState] = useState({ status: normalizedMatchId ? 'loading' : 'idle', text: normalizedMatchId ? '取得中...' : '試合未選択' });
+
+  useEffect(() => {
+    if (!normalizedMatchId) {
+      setState({ status: 'idle', text: '試合未選択' });
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadScore = async () => {
+      setState((prev) => ({ status: 'loading', text: prev.status === 'success' ? prev.text : '取得中...' }));
+
+      try {
+        const res = await fetch(`/api/football-score?matchId=${encodeURIComponent(normalizedMatchId)}`, { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'score request failed');
+        }
+
+        const homeScore = Number.isFinite(Number(data.homeScore)) ? Number(data.homeScore) : 0;
+        const awayScore = Number.isFinite(Number(data.awayScore)) ? Number(data.awayScore) : 0;
+        const homeTeam = data.homeTeam || 'Home';
+        const awayTeam = data.awayTeam || 'Away';
+
+        if (!cancelled) {
+          setState({ status: 'success', text: `${homeTeam} ${homeScore}-${awayScore} ${awayTeam}` });
+        }
+      } catch {
+        if (!cancelled) {
+          setState({ status: 'error', text: 'スコア取得失敗' });
+        }
+      }
+    };
+
+    loadScore();
+    const interval = setInterval(loadScore, FOOTBALL_SCORE_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [normalizedMatchId]);
+
+  return <p className="war-status-period-remain">{state.text}</p>;
 }
 
 function resolveHudMode(settings) {
@@ -454,7 +504,7 @@ export function BattleLayout() {
           </div>
           <div className="war-status-block">
             <p className="war-status-period">{periodRemain}</p>
-            <p className="war-status-period-remain">{settings.mode === 'soccer' && settings.competitionName ? settings.competitionName : `A = ${settings.sideAName} / B = ${settings.sideBName}`}</p>
+            {settings.mode === 'soccer' ? <FootballScoreLine matchId={settings.footballMatchId} /> : <p className="war-status-period-remain">{`A = ${settings.sideAName} / B = ${settings.sideBName}`}</p>}
             {showUpdateCountdown ? <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p> : null}
           </div>
         </header>
