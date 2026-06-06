@@ -13,6 +13,7 @@ test('normalizeLiveSettings keeps mode-specific names isolated', () => {
       sideBName: 'SELECAO',
       sideALabel: 'JPN',
       sideBLabel: 'BRA',
+      footballMatchId: '497410',
     },
     'soccer',
     defaults.startAt,
@@ -27,6 +28,7 @@ test('normalizeLiveSettings keeps mode-specific names isolated', () => {
 
   assert.equal(savedSoccer.title, 'SAMURAI vs SELECAO');
   assert.equal(savedSoccer.modeProfiles.soccer.sideAName, 'SAMURAI BLUE');
+  assert.equal(savedSoccer.modeProfiles.soccer.footballMatchId, '497410');
   assert.equal(savedSoccer.modeProfiles.war.sideAName, 'CITY');
   assert.equal(savedSoccer.modeProfiles.war.sideBName, 'COUNTRY');
 

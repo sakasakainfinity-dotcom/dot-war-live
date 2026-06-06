@@ -159,6 +159,7 @@ export default function AdminPage() {
             <TextField label="Aチーム絵文字" value={form.soccerTeamAEmoji} onChange={(v) => patchForm({ soccerTeamAEmoji: v })} />
             <TextField label="Bチーム絵文字" value={form.soccerTeamBEmoji} onChange={(v) => patchForm({ soccerTeamBEmoji: v })} />
             <TextField label="大会名・リーグ名" value={form.competitionName} onChange={(v) => patchForm({ competitionName: v })} />
+            <TextField label="football-data.org matchId" value={form.footballMatchId} onChange={(v) => patchForm({ footballMatchId: v })} placeholder="例: 497410" />
             <TextField label="試合開始日時" type="datetime-local" value={toLocalInputValue(form.startAt)} onChange={setStartAt} />
             <TextField label="前半時間（分）" type="number" value={form.soccerFirstHalfMinutes} onChange={(v) => patchForm({ soccerFirstHalfMinutes: v })} />
             <TextField label="ハーフタイム時間（分）" type="number" value={form.soccerHalfTimeMinutes} onChange={(v) => patchForm({ soccerHalfTimeMinutes: v })} />
