@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildWorldCupMatchesEndpoint, normalizeFootballMatchCandidates, normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
+import { buildWorldCupMatchesEndpoint, findFallbackWorldCupMatch, getFallbackWorldCupMatches, normalizeFootballMatchCandidates, normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
 
 test('pickAvailableScore uses fullTime score when available', () => {
   assert.deepEqual(
@@ -51,6 +51,7 @@ test('normalizeFootballMatchCandidates returns searchable admin match options', 
         id: 497410,
         utcDate: '2026-06-06T19:00:00Z',
         competition: 'Premier League',
+        source: 'football-data.org',
         homeTeam: 'Arsenal',
         awayTeam: 'Chelsea',
         homeScore: 0,
@@ -68,4 +69,36 @@ test('buildWorldCupMatchesEndpoint targets only FIFA World Cup over a 10 day win
   assert.equal(endpoint.searchParams.get('dateFrom'), '2026-06-06');
   assert.equal(endpoint.searchParams.get('dateTo'), '2026-06-16');
   assert.equal(dateTo, '2026-06-16');
+});
+
+
+test('getFallbackWorldCupMatches returns selectable 2026 World Cup fixtures', () => {
+  const matches = getFallbackWorldCupMatches('2026-06-06', '2026-06-16');
+
+  assert.equal(matches.length, 10);
+  assert.deepEqual(matches[0], {
+    id: 'wc-2026-mexico-south-africa',
+    utcDate: '2026-06-12T04:00:00.000Z',
+    competition: 'FIFA World Cup',
+    source: 'fallback_world_cup_2026',
+    homeTeam: 'Mexico',
+    awayTeam: 'South Africa',
+    homeScore: 0,
+    awayScore: 0,
+    status: 'SCHEDULED',
+  });
+});
+
+test('findFallbackWorldCupMatch finds fixed World Cup candidates by synthetic id', () => {
+  assert.deepEqual(findFallbackWorldCupMatch('wc-2026-netherlands-japan'), {
+    id: 'wc-2026-netherlands-japan',
+    utcDate: '2026-06-15T05:00:00.000Z',
+    competition: 'FIFA World Cup',
+    source: 'fallback_world_cup_2026',
+    homeTeam: 'Netherlands',
+    awayTeam: 'Japan',
+    homeScore: 0,
+    awayScore: 0,
+    status: 'SCHEDULED',
+  });
 });

@@ -177,7 +177,7 @@ export default function AdminPage() {
 
       const matches = Array.isArray(data.matches) ? data.matches : [];
       setFootballMatchOptions(matches);
-      setFootballMatchSearchMessage(matches.length > 0 ? `${data.dateFrom || footballSearchDate} から ${data.dateTo || '10日後'} までのW杯試合候補を${matches.length}件取得しました` : `${data.dateFrom || footballSearchDate} から ${data.dateTo || '10日後'} までのW杯試合候補は見つかりませんでした`);
+      setFootballMatchSearchMessage(matches.length > 0 ? `${data.dateFrom || footballSearchDate} から ${data.dateTo || '10日後'} までのW杯試合候補を${matches.length}件取得しました${data.warning ? `（${data.warning}）` : ''}` : `${data.dateFrom || footballSearchDate} から ${data.dateTo || '10日後'} までのW杯試合候補は見つかりませんでした${data.warning ? `（${data.warning}）` : ''}`);
     } catch (error) {
       setFootballMatchSearchError(`W杯試合一覧の取得に失敗しました: ${error.message}`);
     } finally {
@@ -207,7 +207,7 @@ export default function AdminPage() {
       startAt,
       endAt: hasKickoff ? addMinutes(startAt, form.durationMinutes) : form.endAt,
     });
-    setFootballMatchSearchMessage(`選択しました: ${homeTeam} vs ${awayTeam} / matchId=${match.id}`);
+    setFootballMatchSearchMessage(`選択しました: ${homeTeam} vs ${awayTeam} / matchId=${match.id}${match.source && match.source !== 'football-data.org' ? '（固定候補）' : ''}`);
   };
 
   const renderModeFields = () => {
@@ -239,7 +239,7 @@ export default function AdminPage() {
                 <button type="button" onClick={handleSearchFootballMatches} disabled={isSearchingFootballMatches}>{isSearchingFootballMatches ? '取得中...' : 'この日からW杯を検索'}</button>
               </div>
             </div>
-            <p className="admin-help">選択した日付から10日間の FIFA World Cup（competition code: WC）だけを検索します。</p>
+            <p className="admin-help">選択した日付から10日間の FIFA World Cup（competition code: WC）だけを検索します。football-data.org で候補が見つからない場合は、2026年W杯の固定候補を表示します。</p>
             {footballMatchSearchMessage ? <p className="admin-success">{footballMatchSearchMessage}</p> : null}
             {footballMatchSearchError ? <p className="admin-error">{footballMatchSearchError}</p> : null}
             {footballMatchOptions.length > 0 ? (
@@ -247,7 +247,7 @@ export default function AdminPage() {
                 {footballMatchOptions.map((match) => (
                   <button key={match.id} type="button" className="football-match-option" onClick={() => selectFootballMatch(match)}>
                     <strong>{match.homeTeam || 'Home'} vs {match.awayTeam || 'Away'}</strong>
-                    <span>{match.competition || '大会名なし'} · {match.utcDate ? new Date(match.utcDate).toLocaleString('ja-JP', { hour12: false }) : '日時未定'} · {match.status || 'statusなし'} · ID: {match.id}</span>
+                    <span>{match.competition || '大会名なし'} · {match.utcDate ? new Date(match.utcDate).toLocaleString('ja-JP', { hour12: false }) : '日時未定'} · {match.status || 'statusなし'} · ID: {match.id}{match.source && match.source !== 'football-data.org' ? ' · 固定候補' : ''}</span>
                   </button>
                 ))}
               </div>
