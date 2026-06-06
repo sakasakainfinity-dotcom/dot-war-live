@@ -20,6 +20,15 @@ function toLocalInputValue(iso) {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
+function toDateInputValue(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function fromLocalInputValue(value, fallbackIso) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? fallbackIso : parsed.toISOString();
