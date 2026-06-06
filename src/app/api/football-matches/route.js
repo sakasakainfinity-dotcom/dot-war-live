@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { normalizeFootballMatchCandidates } from '../../../lib/footballScore.js';
+import { buildWorldCupMatchesEndpoint, normalizeFootballMatchCandidates, WORLD_CUP_COMPETITION_CODE } from '../../../lib/footballScore.js';
 
-function isValidDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(new Date(`${value}T00:00:00.000Z`).getTime());
+function isValidSeason(value) {
+  return !value || /^\d{4}$/.test(value);
 }
 
 export async function GET(request) {
-  const date = new URL(request.url).searchParams.get('date')?.trim();
-  if (!isValidDate(date)) {
-    return NextResponse.json({ ok: false, error: 'date は YYYY-MM-DD 形式で指定してください' }, { status: 400 });
+  const season = new URL(request.url).searchParams.get('season')?.trim() || '';
+  if (!isValidSeason(season)) {
+    return NextResponse.json({ ok: false, error: 'season は YYYY 形式で指定してください' }, { status: 400 });
   }
 
   const apiToken = process.env.FOOTBALL_API_TOKEN;
@@ -16,9 +16,7 @@ export async function GET(request) {
     return NextResponse.json({ ok: false, error: 'FOOTBALL_API_TOKEN が未設定です' }, { status: 500 });
   }
 
-  const endpoint = new URL('https://api.football-data.org/v4/matches');
-  endpoint.searchParams.set('dateFrom', date);
-  endpoint.searchParams.set('dateTo', date);
+  const { endpoint } = buildWorldCupMatchesEndpoint(season);
 
   try {
     const footballRes = await fetch(endpoint, {
@@ -30,12 +28,17 @@ export async function GET(request) {
 
     if (!footballRes.ok) {
       const detail = await footballRes.text();
-      return NextResponse.json({ ok: false, error: `football-data.org 試合一覧取得失敗 (${footballRes.status}): ${detail}` }, { status: 502 });
+      return NextResponse.json({ ok: false, error: `football-data.org W杯試合一覧取得失敗 (${footballRes.status}): ${detail}` }, { status: 502 });
     }
 
     const data = await footballRes.json();
-    return NextResponse.json({ ok: true, matches: normalizeFootballMatchCandidates(data.matches || []) });
+    return NextResponse.json({
+      ok: true,
+      competitionCode: WORLD_CUP_COMPETITION_CODE,
+      season,
+      matches: normalizeFootballMatchCandidates(data.matches || []),
+    });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'football-data.org 試合一覧取得失敗' }, { status: 500 });
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'football-data.org W杯試合一覧取得失敗' }, { status: 500 });
   }
 }

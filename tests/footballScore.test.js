@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { normalizeFootballMatchCandidates, normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
+import { buildWorldCupMatchesEndpoint, normalizeFootballMatchCandidates, normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
 
 test('pickAvailableScore uses fullTime score when available', () => {
   assert.deepEqual(
@@ -36,27 +36,46 @@ test('normalizeFootballMatchCandidates returns searchable admin match options', 
   assert.deepEqual(
     normalizeFootballMatchCandidates([
       {
-        id: 497410,
-        utcDate: '2026-06-06T19:00:00Z',
-        competition: { name: 'Premier League' },
-        homeTeam: { name: 'Arsenal' },
-        awayTeam: { name: 'Chelsea' },
+        id: 436545,
+        utcDate: '2026-06-11T21:00:00Z',
+        competition: { name: 'FIFA World Cup' },
+        homeTeam: { name: 'Mexico' },
+        awayTeam: { name: 'South Africa' },
         score: { fullTime: { home: null, away: null }, halfTime: { home: 0, away: 0 } },
-        status: 'SCHEDULED',
+        status: 'TIMED',
+        matchday: 1,
+        stage: 'GROUP_STAGE',
+        group: 'GROUP_A',
       },
       { utcDate: '2026-06-06T20:00:00Z' },
     ]),
     [
       {
-        id: 497410,
-        utcDate: '2026-06-06T19:00:00Z',
-        competition: 'Premier League',
-        homeTeam: 'Arsenal',
-        awayTeam: 'Chelsea',
+        id: 436545,
+        utcDate: '2026-06-11T21:00:00Z',
+        matchday: 1,
+        stage: 'GROUP_STAGE',
+        group: 'GROUP_A',
+        competition: 'FIFA World Cup',
+        source: 'football-data.org',
+        homeTeam: 'Mexico',
+        awayTeam: 'South Africa',
         homeScore: 0,
         awayScore: 0,
-        status: 'SCHEDULED',
+        status: 'TIMED',
       },
     ],
   );
+});
+
+test('buildWorldCupMatchesEndpoint targets FIFA World Cup and optional season', () => {
+  const current = buildWorldCupMatchesEndpoint();
+  assert.equal(current.endpoint.pathname, '/v4/competitions/WC/matches');
+  assert.equal(current.endpoint.search, '');
+  assert.equal(current.season, '');
+
+  const withSeason = buildWorldCupMatchesEndpoint('2026');
+  assert.equal(withSeason.endpoint.pathname, '/v4/competitions/WC/matches');
+  assert.equal(withSeason.endpoint.searchParams.get('season'), '2026');
+  assert.equal(withSeason.season, '2026');
 });
