@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildWorldCupMatchesEndpoint, findFallbackWorldCupMatch, getFallbackWorldCupMatches, normalizeFootballMatchCandidates, normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
+import { buildWorldCupMatchesEndpoint, normalizeFootballMatchCandidates, normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
 
 test('pickAvailableScore uses fullTime score when available', () => {
   assert.deepEqual(
@@ -36,69 +36,46 @@ test('normalizeFootballMatchCandidates returns searchable admin match options', 
   assert.deepEqual(
     normalizeFootballMatchCandidates([
       {
-        id: 497410,
-        utcDate: '2026-06-06T19:00:00Z',
-        competition: { name: 'Premier League' },
-        homeTeam: { name: 'Arsenal' },
-        awayTeam: { name: 'Chelsea' },
+        id: 436545,
+        utcDate: '2026-06-11T21:00:00Z',
+        competition: { name: 'FIFA World Cup' },
+        homeTeam: { name: 'Mexico' },
+        awayTeam: { name: 'South Africa' },
         score: { fullTime: { home: null, away: null }, halfTime: { home: 0, away: 0 } },
-        status: 'SCHEDULED',
+        status: 'TIMED',
+        matchday: 1,
+        stage: 'GROUP_STAGE',
+        group: 'GROUP_A',
       },
       { utcDate: '2026-06-06T20:00:00Z' },
     ]),
     [
       {
-        id: 497410,
-        utcDate: '2026-06-06T19:00:00Z',
-        competition: 'Premier League',
+        id: 436545,
+        utcDate: '2026-06-11T21:00:00Z',
+        matchday: 1,
+        stage: 'GROUP_STAGE',
+        group: 'GROUP_A',
+        competition: 'FIFA World Cup',
         source: 'football-data.org',
-        homeTeam: 'Arsenal',
-        awayTeam: 'Chelsea',
+        homeTeam: 'Mexico',
+        awayTeam: 'South Africa',
         homeScore: 0,
         awayScore: 0,
-        status: 'SCHEDULED',
+        status: 'TIMED',
       },
     ],
   );
 });
 
-test('buildWorldCupMatchesEndpoint targets only FIFA World Cup over a 10 day window', () => {
-  const { endpoint, dateTo } = buildWorldCupMatchesEndpoint('2026-06-06');
+test('buildWorldCupMatchesEndpoint targets FIFA World Cup and optional season', () => {
+  const current = buildWorldCupMatchesEndpoint();
+  assert.equal(current.endpoint.pathname, '/v4/competitions/WC/matches');
+  assert.equal(current.endpoint.search, '');
+  assert.equal(current.season, '');
 
-  assert.equal(endpoint.pathname, '/v4/competitions/WC/matches');
-  assert.equal(endpoint.searchParams.get('dateFrom'), '2026-06-06');
-  assert.equal(endpoint.searchParams.get('dateTo'), '2026-06-16');
-  assert.equal(dateTo, '2026-06-16');
-});
-
-
-test('getFallbackWorldCupMatches returns selectable 2026 World Cup fixtures', () => {
-  const matches = getFallbackWorldCupMatches('2026-06-06', '2026-06-16');
-
-  assert.equal(matches.length, 10);
-  assert.deepEqual(matches[0], {
-    id: 'wc-2026-mexico-south-africa',
-    utcDate: '2026-06-12T04:00:00.000Z',
-    competition: 'FIFA World Cup',
-    source: 'fallback_world_cup_2026',
-    homeTeam: 'Mexico',
-    awayTeam: 'South Africa',
-    homeScore: 0,
-    awayScore: 0,
-    status: 'SCHEDULED',
-  });
-});
-
-test('findFallbackWorldCupMatch finds fixed World Cup candidates by synthetic id', () => {
-  assert.deepEqual(findFallbackWorldCupMatch('wc-2026-netherlands-japan'), {
-    id: 'wc-2026-netherlands-japan',
-    utcDate: '2026-06-15T05:00:00.000Z',
-    competition: 'FIFA World Cup',
-    source: 'fallback_world_cup_2026',
-    homeTeam: 'Netherlands',
-    awayTeam: 'Japan',
-    homeScore: 0,
-    awayScore: 0,
-    status: 'SCHEDULED',
-  });
+  const withSeason = buildWorldCupMatchesEndpoint('2026');
+  assert.equal(withSeason.endpoint.pathname, '/v4/competitions/WC/matches');
+  assert.equal(withSeason.endpoint.searchParams.get('season'), '2026');
+  assert.equal(withSeason.season, '2026');
 });

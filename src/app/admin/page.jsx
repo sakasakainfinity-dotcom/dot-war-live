@@ -20,15 +20,6 @@ function toLocalInputValue(iso) {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
-function toDateInputValue(iso) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 function fromLocalInputValue(value, fallbackIso) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? fallbackIso : parsed.toISOString();
@@ -67,7 +58,7 @@ export default function AdminPage() {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSavingLiveChat, setIsSavingLiveChat] = useState(false);
-  const [footballSearchDate, setFootballSearchDate] = useState(() => toDateInputValue(defaults.startAt));
+  const [footballSearchSeason, setFootballSearchSeason] = useState('2026');
   const [footballMatchOptions, setFootballMatchOptions] = useState([]);
   const [isSearchingFootballMatches, setIsSearchingFootballMatches] = useState(false);
   const [footballMatchSearchMessage, setFootballMatchSearchMessage] = useState('');
@@ -76,7 +67,6 @@ export default function AdminPage() {
   useEffect(() => {
     const storedSettings = readLiveSettings();
     setForm(storedSettings);
-    setFootballSearchDate(toDateInputValue(storedSettings.startAt));
     loadCurrentStreamInfo();
   }, []);
 
@@ -168,7 +158,7 @@ export default function AdminPage() {
     setFootballMatchOptions([]);
 
     try {
-      const res = await fetch(`/api/football-matches?date=${encodeURIComponent(footballSearchDate)}`, { cache: 'no-store' });
+      const res = await fetch(`/api/football-matches?season=${encodeURIComponent(footballSearchSeason)}`, { cache: 'no-store' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
         setFootballMatchSearchError(data.error || 'W杯試合一覧の取得に失敗しました');
@@ -177,7 +167,7 @@ export default function AdminPage() {
 
       const matches = Array.isArray(data.matches) ? data.matches : [];
       setFootballMatchOptions(matches);
-      setFootballMatchSearchMessage(matches.length > 0 ? `${data.dateFrom || footballSearchDate} から ${data.dateTo || '10日後'} までのW杯試合候補を${matches.length}件取得しました${data.warning ? `（${data.warning}）` : ''}` : `${data.dateFrom || footballSearchDate} から ${data.dateTo || '10日後'} までのW杯試合候補は見つかりませんでした${data.warning ? `（${data.warning}）` : ''}`);
+      setFootballMatchSearchMessage(matches.length > 0 ? `${data.season || '最新'}年シーズンのW杯試合候補を${matches.length}件取得しました` : `${data.season || '最新'}年シーズンのW杯試合候補は見つかりませんでした`);
     } catch (error) {
       setFootballMatchSearchError(`W杯試合一覧の取得に失敗しました: ${error.message}`);
     } finally {
@@ -207,7 +197,7 @@ export default function AdminPage() {
       startAt,
       endAt: hasKickoff ? addMinutes(startAt, form.durationMinutes) : form.endAt,
     });
-    setFootballMatchSearchMessage(`選択しました: ${homeTeam} vs ${awayTeam} / matchId=${match.id}${match.source && match.source !== 'football-data.org' ? '（固定候補）' : ''}`);
+    setFootballMatchSearchMessage(`選択しました: ${homeTeam} vs ${awayTeam} / matchId=${match.id}`);
   };
 
   const renderModeFields = () => {
@@ -233,13 +223,13 @@ export default function AdminPage() {
           <div className="admin-football-search">
             <h3>football-data.org W杯試合候補検索</h3>
             <div className="admin-grid-2">
-              <TextField label="検索する日付" type="date" value={footballSearchDate} onChange={setFootballSearchDate} />
+              <TextField label="W杯シーズン" type="number" value={footballSearchSeason} onChange={setFootballSearchSeason} placeholder="例: 2026 / 2022" />
               <div className="admin-field admin-field-action">
                 <span>FIFA World Cup（WC）</span>
-                <button type="button" onClick={handleSearchFootballMatches} disabled={isSearchingFootballMatches}>{isSearchingFootballMatches ? '取得中...' : 'この日からW杯を検索'}</button>
+                <button type="button" onClick={handleSearchFootballMatches} disabled={isSearchingFootballMatches}>{isSearchingFootballMatches ? '取得中...' : 'W杯全試合を取得'}</button>
               </div>
             </div>
-            <p className="admin-help">選択した日付から10日間の FIFA World Cup（competition code: WC）だけを検索します。football-data.org で候補が見つからない場合は、2026年W杯の固定候補を表示します。</p>
+            <p className="admin-help">football-data.org の <code>/v4/competitions/WC/matches?season=YYYY</code> からW杯全試合を取得します。例: 2026年大会は season=2026、2022年カタール大会は season=2022。</p>
             {footballMatchSearchMessage ? <p className="admin-success">{footballMatchSearchMessage}</p> : null}
             {footballMatchSearchError ? <p className="admin-error">{footballMatchSearchError}</p> : null}
             {footballMatchOptions.length > 0 ? (
@@ -247,7 +237,7 @@ export default function AdminPage() {
                 {footballMatchOptions.map((match) => (
                   <button key={match.id} type="button" className="football-match-option" onClick={() => selectFootballMatch(match)}>
                     <strong>{match.homeTeam || 'Home'} vs {match.awayTeam || 'Away'}</strong>
-                    <span>{match.competition || '大会名なし'} · {match.utcDate ? new Date(match.utcDate).toLocaleString('ja-JP', { hour12: false }) : '日時未定'} · {match.status || 'statusなし'} · ID: {match.id}{match.source && match.source !== 'football-data.org' ? ' · 固定候補' : ''}</span>
+                    <span>{match.competition || '大会名なし'} · {match.utcDate ? new Date(match.utcDate).toLocaleString('ja-JP', { hour12: false }) : '日時未定'} · {match.status || 'statusなし'} · {match.stage || 'stageなし'}{match.group ? ` · ${match.group}` : ''} · ID: {match.id}</span>
                   </button>
                 ))}
               </div>

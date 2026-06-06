@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server';
-import { findFallbackWorldCupMatch, normalizeFootballMatchScore } from '../../../lib/footballScore.js';
+import { normalizeFootballMatchScore } from '../../../lib/footballScore.js';
 
 export async function GET(request) {
   const matchId = new URL(request.url).searchParams.get('matchId')?.trim();
   if (!matchId) {
     return NextResponse.json({ ok: false, error: 'matchId が未設定です' }, { status: 400 });
-  }
-
-  const fallbackMatch = findFallbackWorldCupMatch(matchId);
-  if (fallbackMatch) {
-    return NextResponse.json({ ok: true, ...fallbackMatch });
   }
 
   const apiToken = process.env.FOOTBALL_API_TOKEN;
