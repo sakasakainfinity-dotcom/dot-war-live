@@ -44,7 +44,7 @@ const HUD_UPDATE_RULES = {
   },
 };
 const COMMENT_POLL_INTERVAL_MS = 60_000;
-const FOOTBALL_SCORE_POLL_INTERVAL_MS = 30_000;
+const FOOTBALL_SCORE_POLL_INTERVAL_MS = 60_000;
 
 const MODE_STATUS_COPY = {
   soccer: {
@@ -82,6 +82,14 @@ function FootballScoreLine({ matchId }) {
     }
 
     let cancelled = false;
+    let intervalId;
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = undefined;
+      }
+    };
 
     const loadScore = async () => {
       setState((prev) => ({ status: 'loading', text: prev.status === 'success' ? prev.text : '取得中...' }));
@@ -101,6 +109,10 @@ function FootballScoreLine({ matchId }) {
         if (!cancelled) {
           setState({ status: 'success', text: `${homeTeam} ${homeScore}-${awayScore} ${awayTeam}` });
         }
+
+        if (data.status === 'FINISHED') {
+          stopPolling();
+        }
       } catch {
         if (!cancelled) {
           setState({ status: 'error', text: 'スコア取得失敗' });
@@ -109,11 +121,11 @@ function FootballScoreLine({ matchId }) {
     };
 
     loadScore();
-    const interval = setInterval(loadScore, FOOTBALL_SCORE_POLL_INTERVAL_MS);
+    intervalId = setInterval(loadScore, FOOTBALL_SCORE_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
     };
   }, [normalizedMatchId]);
 
