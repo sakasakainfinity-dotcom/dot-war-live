@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
+import { normalizeFootballMatchCandidates, normalizeFootballMatchScore, pickAvailableScore } from '../src/lib/footballScore.js';
 
 test('pickAvailableScore uses fullTime score when available', () => {
   assert.deepEqual(
@@ -29,5 +29,34 @@ test('normalizeFootballMatchScore returns team names, score, and status', () => 
       status: 'IN_PLAY',
     }),
     { homeTeam: 'Brighton', awayTeam: 'Chelsea', homeScore: 1, awayScore: 0, status: 'IN_PLAY' },
+  );
+});
+
+test('normalizeFootballMatchCandidates returns searchable admin match options', () => {
+  assert.deepEqual(
+    normalizeFootballMatchCandidates([
+      {
+        id: 497410,
+        utcDate: '2026-06-06T19:00:00Z',
+        competition: { name: 'Premier League' },
+        homeTeam: { name: 'Arsenal' },
+        awayTeam: { name: 'Chelsea' },
+        score: { fullTime: { home: null, away: null }, halfTime: { home: 0, away: 0 } },
+        status: 'SCHEDULED',
+      },
+      { utcDate: '2026-06-06T20:00:00Z' },
+    ]),
+    [
+      {
+        id: 497410,
+        utcDate: '2026-06-06T19:00:00Z',
+        competition: 'Premier League',
+        homeTeam: 'Arsenal',
+        awayTeam: 'Chelsea',
+        homeScore: 0,
+        awayScore: 0,
+        status: 'SCHEDULED',
+      },
+    ],
   );
 });

@@ -26,3 +26,17 @@ export function normalizeFootballMatchScore(match = {}) {
     status: match.status || '',
   };
 }
+
+export function normalizeFootballMatchCandidate(match = {}) {
+  const normalizedScore = normalizeFootballMatchScore(match);
+  return {
+    id: match.id,
+    utcDate: match.utcDate || '',
+    competition: match.competition?.name || '',
+    ...normalizedScore,
+  };
+}
+
+export function normalizeFootballMatchCandidates(matches = []) {
+  return matches.map(normalizeFootballMatchCandidate).filter((match) => match.id !== null && match.id !== undefined);
+}

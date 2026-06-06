@@ -20,6 +20,15 @@ function toLocalInputValue(iso) {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
+function toDateInputValue(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function fromLocalInputValue(value, fallbackIso) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? fallbackIso : parsed.toISOString();
@@ -58,9 +67,16 @@ export default function AdminPage() {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSavingLiveChat, setIsSavingLiveChat] = useState(false);
+  const [footballSearchDate, setFootballSearchDate] = useState(() => toDateInputValue(defaults.startAt));
+  const [footballMatchOptions, setFootballMatchOptions] = useState([]);
+  const [isSearchingFootballMatches, setIsSearchingFootballMatches] = useState(false);
+  const [footballMatchSearchMessage, setFootballMatchSearchMessage] = useState('');
+  const [footballMatchSearchError, setFootballMatchSearchError] = useState('');
 
   useEffect(() => {
-    setForm(readLiveSettings());
+    const storedSettings = readLiveSettings();
+    setForm(storedSettings);
+    setFootballSearchDate(toDateInputValue(storedSettings.startAt));
     loadCurrentStreamInfo();
   }, []);
 
@@ -145,6 +161,55 @@ export default function AdminPage() {
     }
   };
 
+  const handleSearchFootballMatches = async () => {
+    setIsSearchingFootballMatches(true);
+    setFootballMatchSearchMessage('');
+    setFootballMatchSearchError('');
+    setFootballMatchOptions([]);
+
+    try {
+      const res = await fetch(`/api/football-matches?date=${encodeURIComponent(footballSearchDate)}`, { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setFootballMatchSearchError(data.error || '試合一覧の取得に失敗しました');
+        return;
+      }
+
+      const matches = Array.isArray(data.matches) ? data.matches : [];
+      setFootballMatchOptions(matches);
+      setFootballMatchSearchMessage(matches.length > 0 ? `${matches.length}件の試合候補を取得しました` : 'この日の試合候補は見つかりませんでした');
+    } catch (error) {
+      setFootballMatchSearchError(`試合一覧の取得に失敗しました: ${error.message}`);
+    } finally {
+      setIsSearchingFootballMatches(false);
+    }
+  };
+
+  const selectFootballMatch = (match) => {
+    const homeTeam = match.homeTeam || form.sideAName;
+    const awayTeam = match.awayTeam || form.sideBName;
+    const kickoff = new Date(match.utcDate);
+    const hasKickoff = !Number.isNaN(kickoff.getTime());
+    const startAt = hasKickoff ? kickoff.toISOString() : form.startAt;
+
+    patchForm({
+      footballMatchId: `${match.id}`,
+      title: `${homeTeam} vs ${awayTeam}`,
+      sideAName: homeTeam,
+      sideBName: awayTeam,
+      sideALabel: homeTeam,
+      sideBLabel: awayTeam,
+      teamA_en: homeTeam,
+      teamB_en: awayTeam,
+      teamA_ja: homeTeam,
+      teamB_ja: awayTeam,
+      competitionName: match.competition || form.competitionName,
+      startAt,
+      endAt: hasKickoff ? addMinutes(startAt, form.durationMinutes) : form.endAt,
+    });
+    setFootballMatchSearchMessage(`選択しました: ${homeTeam} vs ${awayTeam} / matchId=${match.id}`);
+  };
+
   const renderModeFields = () => {
     if (form.mode === 'soccer') {
       return (
@@ -159,11 +224,33 @@ export default function AdminPage() {
             <TextField label="Aチーム絵文字" value={form.soccerTeamAEmoji} onChange={(v) => patchForm({ soccerTeamAEmoji: v })} />
             <TextField label="Bチーム絵文字" value={form.soccerTeamBEmoji} onChange={(v) => patchForm({ soccerTeamBEmoji: v })} />
             <TextField label="大会名・リーグ名" value={form.competitionName} onChange={(v) => patchForm({ competitionName: v })} />
-            <TextField label="football-data.org matchId" value={form.footballMatchId} onChange={(v) => patchForm({ footballMatchId: v })} placeholder="例: 497410" />
+            <TextField label="football-data.org matchId" value={form.footballMatchId} onChange={(v) => patchForm({ footballMatchId: v })} placeholder="候補から選ぶと自動入力されます" />
             <TextField label="試合開始日時" type="datetime-local" value={toLocalInputValue(form.startAt)} onChange={setStartAt} />
             <TextField label="前半時間（分）" type="number" value={form.soccerFirstHalfMinutes} onChange={(v) => patchForm({ soccerFirstHalfMinutes: v })} />
             <TextField label="ハーフタイム時間（分）" type="number" value={form.soccerHalfTimeMinutes} onChange={(v) => patchForm({ soccerHalfTimeMinutes: v })} />
             <TextField label="後半時間（分）" type="number" value={form.soccerSecondHalfMinutes} onChange={(v) => patchForm({ soccerSecondHalfMinutes: v })} />
+          </div>
+          <div className="admin-football-search">
+            <h3>football-data.org 試合候補検索</h3>
+            <div className="admin-grid-2">
+              <TextField label="検索する日付" type="date" value={footballSearchDate} onChange={setFootballSearchDate} />
+              <div className="admin-field admin-field-action">
+                <span>試合一覧</span>
+                <button type="button" onClick={handleSearchFootballMatches} disabled={isSearchingFootballMatches}>{isSearchingFootballMatches ? '取得中...' : 'この日の試合を取得'}</button>
+              </div>
+            </div>
+            {footballMatchSearchMessage ? <p className="admin-success">{footballMatchSearchMessage}</p> : null}
+            {footballMatchSearchError ? <p className="admin-error">{footballMatchSearchError}</p> : null}
+            {footballMatchOptions.length > 0 ? (
+              <div className="football-match-options">
+                {footballMatchOptions.map((match) => (
+                  <button key={match.id} type="button" className="football-match-option" onClick={() => selectFootballMatch(match)}>
+                    <strong>{match.homeTeam || 'Home'} vs {match.awayTeam || 'Away'}</strong>
+                    <span>{match.competition || '大会名なし'} · {match.utcDate ? new Date(match.utcDate).toLocaleString('ja-JP', { hour12: false }) : '日時未定'} · {match.status || 'statusなし'} · ID: {match.id}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <p className="admin-help">初期値は前半50分 / ハーフタイム15分 / 後半50分です。メイン画面は48ピリオドではなく「前半・ハーフタイム・後半・FULL TIME」を表示します。</p>
         </section>
