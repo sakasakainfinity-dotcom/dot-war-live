@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getModeTimeContext, getPeriodContext, readLiveSettings } from '../lib/liveSettings';
+import { useSearchParams } from 'next/navigation';
+import { getModeTimeContext, getPeriodContext, normalizeLiveSettings, readLiveSettings } from '../lib/liveSettings';
+import { sanitizeMatchId } from '../lib/matchId';
 import { detectCommentLanguage } from '../lib/ai/comment-language';
 import { shouldUseCommentForAiReaction } from '../lib/ai/comment-filter';
 import { createAiReactionQueue } from '../lib/ai/comment-reaction-queue';
@@ -186,7 +188,10 @@ function applyPeriodRule(periodKey, baseDelta, text, beforeBalance) {
 }
 
 export function BattleLayout() {
+  const searchParams = useSearchParams();
+  const urlMatchId = sanitizeMatchId(searchParams.get('matchId') || searchParams.get('roomId'));
   const [settings, setSettings] = useState(() => readLiveSettings());
+  const [matchLoadState, setMatchLoadState] = useState({ status: urlMatchId ? 'loading' : 'idle', message: '' });
   const [nowMs, setNowMs] = useState(Date.now());
   const [totalBalance, setTotalBalance] = useState(0);
   const [periodCommittedBalance, setPeriodCommittedBalance] = useState(0);
@@ -211,6 +216,8 @@ export function BattleLayout() {
   }, []);
 
   useEffect(() => {
+    if (urlMatchId) return undefined;
+
     const reload = (event) => setSettings(event?.detail || readLiveSettings());
     window.addEventListener('storage', reload);
     window.addEventListener('dot-war-live:settings-updated', reload);
@@ -218,7 +225,46 @@ export function BattleLayout() {
       window.removeEventListener('storage', reload);
       window.removeEventListener('dot-war-live:settings-updated', reload);
     };
-  }, []);
+  }, [urlMatchId]);
+
+  useEffect(() => {
+    if (!urlMatchId) {
+      setMatchLoadState({ status: 'idle', message: '' });
+      return undefined;
+    }
+
+    let cancelled = false;
+    let intervalId;
+
+    const loadMatchSettings = async (showLoading = false) => {
+      if (showLoading) setMatchLoadState({ status: 'loading', message: '試合設定を読み込み中...' });
+
+      try {
+        const res = await fetch(`/api/matches/${encodeURIComponent(urlMatchId)}`, { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok || !data.match?.settings) {
+          throw new Error(data.error || '試合設定を取得できませんでした');
+        }
+
+        if (!cancelled) {
+          setSettings(normalizeLiveSettings({ ...data.match.settings, matchId: data.match.matchId || urlMatchId }));
+          setMatchLoadState({ status: 'success', message: `matchId=${data.match.matchId || urlMatchId}` });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMatchLoadState({ status: 'error', message: error.message || '試合設定を取得できませんでした' });
+        }
+      }
+    };
+
+    loadMatchSettings(true);
+    intervalId = setInterval(() => loadMatchSettings(false), 5000);
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [urlMatchId]);
 
   const periodContext = getPeriodContext(settings, nowMs);
   const modeTime = periodContext.modeTime ?? getModeTimeContext(settings, nowMs);
@@ -507,6 +553,7 @@ export function BattleLayout() {
         <header className="war-header panel">
           <div className="war-period-block">
             <p className="war-status-now">Fan War Live · {modeCopy.title}</p>
+            {urlMatchId ? <p className={`war-status-sub-ja${matchLoadState.status === 'error' ? ' match-load-error' : ''}`}>{matchLoadState.message}</p> : null}
             <p className="war-status-sub-en">{modeCopy.descriptionEn}</p>
             <p className="war-status-sub-ja">{modeCopy.descriptionJa}</p>
           </div>

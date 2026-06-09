@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createDefaultLiveSettings, normalizeLiveSettings, normalizeModeProfile, readLiveSettings, writeLiveSettings } from '../../lib/liveSettings';
+import { createMatchId, sanitizeMatchId } from '../../lib/matchId';
 
 const MODE_OPTIONS = [
   { value: 'soccer', label: 'サッカーモード' },
@@ -72,11 +73,23 @@ export default function AdminPage() {
   const [isSearchingFootballMatches, setIsSearchingFootballMatches] = useState(false);
   const [footballMatchSearchMessage, setFootballMatchSearchMessage] = useState('');
   const [footballMatchSearchError, setFootballMatchSearchError] = useState('');
+  const [matchOptions, setMatchOptions] = useState([]);
+  const [selectedMatchId, setSelectedMatchId] = useState('');
+  const [matchStatusMessage, setMatchStatusMessage] = useState('');
+  const [matchErrorMessage, setMatchErrorMessage] = useState('');
+  const [isSavingMatch, setIsSavingMatch] = useState(false);
+  const [isLoadingMatch, setIsLoadingMatch] = useState(false);
+  const [origin, setOrigin] = useState('');
 
   useEffect(() => {
     const storedSettings = readLiveSettings();
-    setForm(storedSettings);
+    const safeMatchId = sanitizeMatchId(storedSettings.matchId) || createMatchId();
+    const settingsWithMatchId = normalizeLiveSettings({ ...storedSettings, matchId: safeMatchId });
+    setForm(settingsWithMatchId);
+    setSelectedMatchId(safeMatchId);
+    setOrigin(window.location.origin);
     loadCurrentStreamInfo();
+    loadMatchOptions();
   }, []);
 
   const loadCurrentStreamInfo = async () => {
@@ -90,14 +103,76 @@ export default function AdminPage() {
     setStreamInfo(data.current);
   };
 
-  const patchForm = (patch) => setForm((prev) => ({ ...prev, ...patch }));
+  const loadMatchOptions = async () => {
+    setMatchErrorMessage('');
+    const res = await fetch('/api/admin/matches', { cache: 'no-store' }).catch(() => null);
+    if (!res) {
+      setMatchErrorMessage('試合一覧を取得できませんでした');
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      setMatchErrorMessage(data.error || '試合一覧を取得できませんでした');
+      return;
+    }
+    setMatchOptions(Array.isArray(data.matches) ? data.matches : []);
+  };
+
+  const loadMatchSettings = async (matchId) => {
+    const safeMatchId = sanitizeMatchId(matchId);
+    if (!safeMatchId) return;
+
+    setIsLoadingMatch(true);
+    setMatchStatusMessage('');
+    setMatchErrorMessage('');
+
+    try {
+      const res = await fetch(`/api/matches/${encodeURIComponent(safeMatchId)}`, { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok || !data.match?.settings) {
+        setMatchErrorMessage(data.error || '試合設定を読み込めませんでした');
+        return;
+      }
+
+      const normalized = normalizeLiveSettings({ ...data.match.settings, matchId: data.match.matchId || safeMatchId });
+      writeLiveSettings(normalized);
+      setForm(normalized);
+      setSelectedMatchId(normalized.matchId);
+      setMatchStatusMessage(`読み込みました: matchId=${normalized.matchId}`);
+    } catch (error) {
+      setMatchErrorMessage(`試合設定を読み込めませんでした: ${error.message}`);
+    } finally {
+      setIsLoadingMatch(false);
+    }
+  };
+
+  const createNewMatch = () => {
+    const matchId = createMatchId();
+    const currentProfile = normalizeModeProfile(form, form.mode, form.startAt);
+    const normalized = normalizeLiveSettings({ ...form, ...currentProfile, matchId, modeProfiles: { ...form.modeProfiles, [form.mode]: currentProfile } });
+    setForm(normalized);
+    setSelectedMatchId(matchId);
+    setSavedAt('');
+    setMatchStatusMessage(`新規試合IDを作成しました。保存すると配信URLが有効になります: matchId=${matchId}`);
+    setMatchErrorMessage('');
+  };
+
+  const broadcastUrl = selectedMatchId && origin ? `${origin}/?matchId=${encodeURIComponent(selectedMatchId)}` : '';
+
+  const patchForm = (patch) => setForm((prev) => {
+    const next = { ...prev, ...patch };
+    if (Object.prototype.hasOwnProperty.call(patch, 'matchId')) {
+      setSelectedMatchId(sanitizeMatchId(patch.matchId));
+    }
+    return next;
+  });
 
   const setMode = (mode) => {
     setForm((prev) => {
       const currentProfile = normalizeModeProfile(prev, prev.mode, prev.startAt);
       const modeProfiles = { ...prev.modeProfiles, [prev.mode]: currentProfile };
       const nextProfile = normalizeModeProfile(modeProfiles[mode], mode, prev.startAt);
-      return normalizeLiveSettings({ ...prev, ...nextProfile, mode, modeProfiles: { ...modeProfiles, [mode]: nextProfile } });
+      return normalizeLiveSettings({ ...prev, ...nextProfile, matchId: prev.matchId, mode, modeProfiles: { ...modeProfiles, [mode]: nextProfile } });
     });
   };
 
@@ -125,12 +200,36 @@ export default function AdminPage() {
   const updateAnnouncementConfig = (key, value) => setForm((prev) => ({ ...prev, announcementConfig: { ...prev.announcementConfig, [key]: value } }));
   const updateBgmConfig = (key, value) => setForm((prev) => ({ ...prev, bgmConfig: { ...prev.bgmConfig, [key]: value } }));
 
-  const handleSave = () => {
-    const currentProfile = normalizeModeProfile(form, form.mode, form.startAt);
-    const normalized = normalizeLiveSettings({ ...form, ...currentProfile, modeProfiles: { ...form.modeProfiles, [form.mode]: currentProfile } });
+  const handleSave = async () => {
+    const matchId = sanitizeMatchId(form.matchId || selectedMatchId) || createMatchId();
+    const currentProfile = normalizeModeProfile({ ...form, matchId }, form.mode, form.startAt);
+    const normalized = normalizeLiveSettings({ ...form, ...currentProfile, matchId, modeProfiles: { ...form.modeProfiles, [form.mode]: currentProfile } });
     writeLiveSettings(normalized);
     setForm(normalized);
+    setSelectedMatchId(matchId);
     setSavedAt(new Date().toLocaleString('ja-JP', { hour12: false }));
+    setIsSavingMatch(true);
+    setMatchStatusMessage('');
+    setMatchErrorMessage('');
+
+    try {
+      const res = await fetch('/api/admin/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, settings: normalized }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setMatchErrorMessage(data.error || '試合設定の保存に失敗しました');
+        return;
+      }
+      setMatchStatusMessage(`試合設定を保存しました: matchId=${data.match.matchId}`);
+      await loadMatchOptions();
+    } catch (error) {
+      setMatchErrorMessage(`試合設定の保存に失敗しました: ${error.message}`);
+    } finally {
+      setIsSavingMatch(false);
+    }
   };
 
   const handleSaveLiveChatId = async () => {
@@ -317,6 +416,33 @@ export default function AdminPage() {
         </section>
 
         <section className="admin-section">
+          <h2>試合固有URL（OBS配信用）</h2>
+          <div className="admin-grid-2">
+            <TextField label="試合ID / matchId" value={form.matchId || selectedMatchId} onChange={(v) => patchForm({ matchId: sanitizeMatchId(v) })} placeholder="例: match-12345" />
+            <label className="admin-field">
+              <span>保存済み試合を選択</span>
+              <select value={selectedMatchId} onChange={(e) => loadMatchSettings(e.target.value)} disabled={isLoadingMatch}>
+                <option value={form.matchId || selectedMatchId}>{matchOptions.length > 0 ? '保存済み試合を選択...' : '保存済み試合なし'}</option>
+                {matchOptions.map((match) => (
+                  <option key={match.matchId} value={match.matchId}>{`${match.title} / ${match.matchId}`}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="admin-broadcast-url">
+            <span>配信表示用URL</span>
+            <code>{broadcastUrl || 'URL生成中...'}</code>
+          </div>
+          <div className="admin-actions">
+            <button type="button" onClick={createNewMatch}>新規試合作成</button>
+            <button type="button" onClick={loadMatchOptions}>試合一覧を再取得</button>
+          </div>
+          <p className="admin-help">このURLをOBSのブラウザソースに貼り付けると、ローカルストレージに依存せずURL内のmatchIdに紐づく保存済み設定を読み込みます。OBS側は5秒ごとに同じmatchIdの設定を再取得します。</p>
+          {matchStatusMessage ? <p className="admin-success">{matchStatusMessage}</p> : null}
+          {matchErrorMessage ? <p className="admin-error">{matchErrorMessage}</p> : null}
+        </section>
+
+        <section className="admin-section">
           <h2>モード選択</h2>
           <label className="admin-field">
             <span>配信モード</span>
@@ -357,7 +483,7 @@ export default function AdminPage() {
         </section>
 
         <div className="admin-actions">
-          <button type="button" onClick={handleSave}>Save</button>
+          <button type="button" onClick={handleSave} disabled={isSavingMatch}>{isSavingMatch ? 'Saving...' : 'Save'}</button>
           {savedAt ? <p>{`Saved: ${savedAt}`}</p> : null}
           <Link href="/" className="stealth-link">game</Link>
         </div>

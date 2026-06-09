@@ -1051,3 +1051,30 @@ body {
   font-size: 0.8rem;
   font-weight: 500;
 }
+
+.admin-broadcast-url {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.65rem 0;
+}
+
+.admin-broadcast-url span {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.admin-broadcast-url code {
+  display: block;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #bfdbfe;
+  padding: 0.65rem;
+  font-size: 0.92rem;
+}
+
+.match-load-error {
+  color: #fca5a5;
+  font-weight: 800;
+}
