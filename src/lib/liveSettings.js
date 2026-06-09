@@ -69,6 +69,7 @@ export function createDefaultModeProfile(mode, anchorStartAt) {
     const endAt = new Date(safeStartAt.getTime() + 115 * 60 * 1000).toISOString();
     return {
       mode: 'soccer',
+      matchId: '',
       title: 'BLUE FC vs RED FC',
       sideAName: 'BLUE FC',
       sideBName: 'RED FC',
@@ -97,6 +98,7 @@ export function createDefaultModeProfile(mode, anchorStartAt) {
     const endAt = new Date(safeStartAt.getTime() + 60 * 60 * 1000).toISOString();
     return {
       mode: 'consultation',
+      matchId: '',
       title: '相談タイトル',
       sideAName: 'A案',
       sideBName: 'B案',
@@ -124,6 +126,7 @@ export function createDefaultModeProfile(mode, anchorStartAt) {
   const endAt = new Date(safeStartAt.getTime() + 24 * 60 * 60 * 1000).toISOString();
   return {
     mode: 'war',
+    matchId: '',
     title: 'CITY vs COUNTRY',
     sideAName: 'CITY',
     sideBName: 'COUNTRY',
@@ -259,6 +262,7 @@ export function normalizeModeProfile(raw, mode, anchorStartAt) {
   const normalizedDefinitions = fallback.periodDefinitions.map((fallbackDefinition, index) => normalizePeriodDefinition(rawDefinitions[index], fallbackDefinition, index));
 
   return {
+    matchId: `${raw?.matchId ?? fallback.matchId ?? ''}`.trim(),
     mode: safeMode,
     title: normalizeText(raw?.title, `${sideAName} vs ${sideBName}`),
     sideAName,
