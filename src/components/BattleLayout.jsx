@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getModeTimeContext, getPeriodContext, normalizeLiveSettings, readLiveSettings } from '../lib/liveSettings';
+import { createDefaultLiveSettings, getModeTimeContext, getPeriodContext, normalizeLiveSettings, readLiveSettings } from '../lib/liveSettings';
 import { sanitizeMatchId } from '../lib/matchId';
 import { detectCommentLanguage } from '../lib/ai/comment-language';
 import { shouldUseCommentForAiReaction } from '../lib/ai/comment-filter';
@@ -187,11 +187,21 @@ function applyPeriodRule(periodKey, baseDelta, text, beforeBalance) {
   return adjustedDelta;
 }
 
-export function BattleLayout() {
+export function BattleLayout({ initialMatchId = '', initialMatchSettings = null, initialMatchLoadState = null }) {
   const searchParams = useSearchParams();
-  const urlMatchId = sanitizeMatchId(searchParams.get('matchId') || searchParams.get('roomId'));
-  const [settings, setSettings] = useState(() => readLiveSettings());
-  const [matchLoadState, setMatchLoadState] = useState({ status: urlMatchId ? 'loading' : 'idle', message: '' });
+  const urlMatchId = sanitizeMatchId(searchParams.get('matchId') || searchParams.get('roomId') || initialMatchId);
+  const [settings, setSettings] = useState(() => {
+    if (urlMatchId) {
+      return initialMatchSettings
+        ? normalizeLiveSettings({ ...initialMatchSettings, matchId: initialMatchSettings.matchId || urlMatchId })
+        : normalizeLiveSettings({ ...createDefaultLiveSettings(), matchId: urlMatchId });
+    }
+
+    return readLiveSettings();
+  });
+  const [matchLoadState, setMatchLoadState] = useState(() => (
+    initialMatchLoadState || { status: urlMatchId ? 'loading' : 'idle', message: '' }
+  ));
   const [nowMs, setNowMs] = useState(Date.now());
   const [totalBalance, setTotalBalance] = useState(0);
   const [periodCommittedBalance, setPeriodCommittedBalance] = useState(0);
