@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createDefaultLiveSettings, normalizeLiveSettings, normalizeModeProfile, readLiveSettings, writeLiveSettings } from '../../lib/liveSettings';
 import { createMatchId, sanitizeMatchId } from '../../lib/matchId';
+import { buildMatchBroadcastUrl } from '../../lib/matchUrlSettings';
 
 const MODE_OPTIONS = [
   { value: 'soccer', label: 'サッカーモード' },
@@ -157,7 +158,8 @@ export default function AdminPage() {
     setMatchErrorMessage('');
   };
 
-  const broadcastUrl = selectedMatchId && origin ? `${origin}/?matchId=${encodeURIComponent(selectedMatchId)}` : '';
+  const broadcastUrlSettings = normalizeLiveSettings({ ...form, matchId: sanitizeMatchId(form.matchId || selectedMatchId) });
+  const broadcastUrl = buildMatchBroadcastUrl(origin, broadcastUrlSettings);
 
   const patchForm = (patch) => setForm((prev) => {
     const next = { ...prev, ...patch };
@@ -437,7 +439,7 @@ export default function AdminPage() {
             <button type="button" onClick={createNewMatch}>新規試合作成</button>
             <button type="button" onClick={loadMatchOptions}>試合一覧を再取得</button>
           </div>
-          <p className="admin-help">このURLをOBSのブラウザソースに貼り付けると、ローカルストレージに依存せずURL内のmatchIdに紐づく保存済み設定を読み込みます。OBS側は5秒ごとに同じmatchIdの設定を再取得します。</p>
+          <p className="admin-help">このURLをOBSのブラウザソースに貼り付けると、ローカルストレージに依存せずURL内のチーム名で初期表示します。保存済み試合がある場合は、OBS側が5秒ごとに同じmatchIdの最新設定を再取得します。</p>
           {matchStatusMessage ? <p className="admin-success">{matchStatusMessage}</p> : null}
           {matchErrorMessage ? <p className="admin-error">{matchErrorMessage}</p> : null}
         </section>
