@@ -4,14 +4,21 @@ import { extractYoutubeVideoId } from '../src/lib/youtubeVideoId.js';
 
 test('extract plain video id', () => {
   assert.deepEqual(extractYoutubeVideoId('NCBNKK-kGZc'), { ok: true, videoId: 'NCBNKK-kGZc' });
+  assert.deepEqual(extractYoutubeVideoId('0NdvzJHX7Wg'), { ok: true, videoId: '0NdvzJHX7Wg' });
 });
 
 test('extract from watch url', () => {
   assert.deepEqual(extractYoutubeVideoId('https://www.youtube.com/watch?v=NCBNKK-kGZc'), { ok: true, videoId: 'NCBNKK-kGZc' });
+  assert.deepEqual(extractYoutubeVideoId('https://www.youtube.com/watch?v=0NdvzJHX7Wg'), { ok: true, videoId: '0NdvzJHX7Wg' });
 });
 
 test('extract from live url', () => {
   assert.deepEqual(extractYoutubeVideoId('https://youtube.com/live/NCBNKK-kGZc?feature=share'), { ok: true, videoId: 'NCBNKK-kGZc' });
+  assert.deepEqual(extractYoutubeVideoId('https://www.youtube.com/live/0NdvzJHX7Wg'), { ok: true, videoId: '0NdvzJHX7Wg' });
+});
+
+test('extract from youtu.be short url', () => {
+  assert.deepEqual(extractYoutubeVideoId('https://youtu.be/0NdvzJHX7Wg'), { ok: true, videoId: '0NdvzJHX7Wg' });
 });
 
 test('reject invalid input', () => {

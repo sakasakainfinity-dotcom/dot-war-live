@@ -47,14 +47,24 @@ function parseAction(commandCode) {
 }
 
 export async function GET(request) {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ ok: false, error: 'YouTube APIキーが未設定です' }, { status: 500 });
+  const missingEnv = ['YOUTUBE_API_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((name) => !process.env[name]);
+  if (missingEnv.length > 0) {
+    console.error('[youtube:comments:missing-env]', { missingEnv });
+    return NextResponse.json({ ok: false, error: `環境変数が未設定です: ${missingEnv.join(', ')}`, debug: { missingEnv } }, { status: 500 });
   }
 
-  const config = await readCurrentStreamSettings().catch(() => null);
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  let config = null;
+  try {
+    config = await readCurrentStreamSettings();
+  } catch (error) {
+    console.error('[youtube:comments:settings-read-error]', { error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.json({ ok: false, error: `配信設定を取得できませんでした: ${error.message}` }, { status: 500 });
+  }
+
   if (!config?.current_live_chat_id) {
-    return NextResponse.json({ ok: false, error: 'current_live_chat_id が未設定です' }, { status: 400 });
+    console.error('[youtube:comments:missing-live-chat-id]', { input: config?.current_video_id || '', videoId: config?.current_video_id || '', liveChatId: config?.current_live_chat_id || '' });
+    return NextResponse.json({ ok: false, error: 'current_live_chat_id が未設定です', debug: { videoId: config?.current_video_id || '' } }, { status: 400 });
   }
 
   const pageToken = new URL(request.url).searchParams.get('pageToken');
@@ -68,7 +78,14 @@ export async function GET(request) {
   const ytRes = await fetch(endpoint, { cache: 'no-store' });
   if (!ytRes.ok) {
     const detail = await ytRes.text();
-    return NextResponse.json({ ok: false, error: `YouTubeコメント取得失敗 (${ytRes.status}): ${detail}` }, { status: 502 });
+    console.error('[youtube:comments:api-error]', {
+      input: config.current_video_id || '',
+      videoId: config.current_video_id || '',
+      liveChatId: config.current_live_chat_id,
+      status: ytRes.status,
+      detail,
+    });
+    return NextResponse.json({ ok: false, error: `YouTubeコメント取得失敗 (${ytRes.status}): ${detail}`, debug: { videoId: config.current_video_id || '', liveChatId: config.current_live_chat_id } }, { status: 502 });
   }
 
   const data = await ytRes.json();
