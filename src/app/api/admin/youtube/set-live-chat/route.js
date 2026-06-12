@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAdminRequest } from '../../../../../lib/server/adminAuth';
 import { upsertCurrentStreamSettings } from '../../../../../lib/server/streamSettingsStore';
+import { extractYoutubeVideoId } from '../../../../../lib/youtubeVideoId';
 
 export async function POST(request) {
   const auth = checkAdminRequest(request);
@@ -8,68 +9,38 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 403 });
   }
 
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ ok: false, error: 'YouTube APIキーが未設定です' }, { status: 500 });
-  }
-
-  console.log('ENV CHECK', {
-    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    SUPABASE_URL: !!process.env.SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    VERCEL_ENV: process.env.VERCEL_ENV
-  });
-
-  const missingSupabaseEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((name) => !process.env[name]);
-  if (missingSupabaseEnv.length > 0) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'Supabase環境変数が未設定です (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY を使用)',
-        debug: {
-          missingEnv: missingSupabaseEnv
-        }
-      },
-      { status: 500 }
-    );
-  }
-
   const body = await request.json().catch(() => ({}));
-  const videoIdOrUrl = `${body.videoIdOrUrl ?? ''}`;
-  let videoId = videoIdOrUrl.trim();
+  const videoIdOrUrl = `${body.videoIdOrUrl ?? ''}`.trim();
+  const extraction = extractYoutubeVideoId(videoIdOrUrl);
+  const videoId = extraction.ok ? extraction.videoId : '';
 
-  const liveMatch = videoId.match(/youtube\.com\/live\/([a-zA-Z0-9_-]+)/);
-  const watchMatch = videoId.match(/[?&]v=([a-zA-Z0-9_-]+)/);
-  const studioMatch = videoId.match(/studio\.youtube\.com\/video\/([a-zA-Z0-9_-]+)/);
-  const plainMatch = videoId.match(/^[a-zA-Z0-9_-]{11}$/);
-
-  console.log('受信した入力:', videoIdOrUrl);
-  console.log('liveMatch:', liveMatch);
-  console.log('watchMatch:', watchMatch);
-  console.log('studioMatch:', studioMatch);
-
-  if (liveMatch) {
-    videoId = liveMatch[1];
-  } else if (watchMatch) {
-    videoId = watchMatch[1];
-  } else if (studioMatch) {
-    videoId = studioMatch[1];
-  } else if (plainMatch) {
-    videoId = plainMatch[0];
-  } else {
+  if (!extraction.ok) {
+    console.error('[youtube:set-live-chat:invalid-video-input]', { input: videoIdOrUrl, videoId, error: extraction.error });
     return NextResponse.json(
       {
         ok: false,
-        error: 'YouTube動画IDを抽出できませんでした',
-        debug: {
-          input: videoIdOrUrl
-        }
+        error: `${extraction.error}。動画ID、YouTubeライブURL、watch URL、youtu.be URLを入力してください。`,
+        debug: { input: videoIdOrUrl, videoId },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
-  console.log('最終videoId:', videoId);
+
+  const missingEnv = ['YOUTUBE_API_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((name) => !process.env[name]);
+  if (missingEnv.length > 0) {
+    console.error('[youtube:set-live-chat:missing-env]', { input: videoIdOrUrl, videoId, missingEnv });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `環境変数が未設定です: ${missingEnv.join(', ')}`,
+        debug: { input: videoIdOrUrl, videoId, missingEnv },
+      },
+      { status: 500 },
+    );
+  }
+
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  console.log('[youtube:set-live-chat:resolved-video-id]', { input: videoIdOrUrl, videoId });
   const endpoint = new URL('https://www.googleapis.com/youtube/v3/videos');
   endpoint.searchParams.set('part', 'liveStreamingDetails');
   endpoint.searchParams.set('id', videoId);
@@ -79,29 +50,34 @@ export async function POST(request) {
     const ytRes = await fetch(endpoint, { cache: 'no-store' });
     if (!ytRes.ok) {
       const detail = await ytRes.text();
-      return NextResponse.json({ ok: false, error: `YouTube APIの呼び出しに失敗しました (${ytRes.status}): ${detail}` }, { status: 502 });
+      console.error('[youtube:set-live-chat:api-error]', { input: videoIdOrUrl, videoId, status: ytRes.status, detail });
+      return NextResponse.json({ ok: false, error: `YouTube APIの呼び出しに失敗しました (${ytRes.status}): ${detail}`, debug: { input: videoIdOrUrl, videoId } }, { status: 502 });
     }
 
     const data = await ytRes.json();
     const item = data?.items?.[0];
     if (!item) {
-      return NextResponse.json({ ok: false, error: '配信IDが見つかりません' }, { status: 404 });
+      console.error('[youtube:set-live-chat:no-video-item]', { input: videoIdOrUrl, videoId, response: data });
+      return NextResponse.json({ ok: false, error: '配信IDが見つかりません', debug: { input: videoIdOrUrl, videoId } }, { status: 404 });
     }
 
     const details = item.liveStreamingDetails;
     if (!details) {
-      return NextResponse.json({ ok: false, error: 'liveStreamingDetails が取得できませんでした' }, { status: 400 });
+      console.error('[youtube:set-live-chat:no-live-streaming-details]', { input: videoIdOrUrl, videoId, item });
+      return NextResponse.json({ ok: false, error: 'liveStreamingDetails が取得できませんでした', debug: { input: videoIdOrUrl, videoId } }, { status: 400 });
     }
 
     const liveChatId = details.activeLiveChatId;
     if (!liveChatId) {
-      return NextResponse.json({ ok: false, error: 'activeLiveChatId が取得できませんでした。ライブ開始前の可能性があります' }, { status: 400 });
+      console.error('[youtube:set-live-chat:no-active-live-chat-id]', { input: videoIdOrUrl, videoId, liveStreamingDetails: details });
+      return NextResponse.json({ ok: false, error: 'activeLiveChatId が取得できませんでした。ライブ開始前の可能性があります', debug: { input: videoIdOrUrl, videoId } }, { status: 400 });
     }
 
     await upsertCurrentStreamSettings({ videoId, liveChatId });
 
     return NextResponse.json({ ok: true, videoId, liveChatId });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: `保存処理に失敗しました: ${error.message}` }, { status: 500 });
+    console.error('[youtube:set-live-chat:save-error]', { input: videoIdOrUrl, videoId, error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.json({ ok: false, error: `保存処理に失敗しました: ${error.message}`, debug: { input: videoIdOrUrl, videoId } }, { status: 500 });
   }
 }

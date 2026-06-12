@@ -15,8 +15,8 @@ import { BattleGrid } from './BattleGrid';
 import { CommandBar } from './CommandGuideDock';
 import { BgmController } from './overlay/BgmController';
 
-const BOARD_ROWS = 10;
-const BOARD_COLS = 20;
+const BOARD_ROWS = 6;
+const BOARD_COLS = 14;
 const COMMAND_EFFECTS = {
   A: { blueDelta: 1, redDelta: 0 },
   '3A': { blueDelta: 3, redDelta: 0 },
@@ -26,14 +26,6 @@ const COMMAND_EFFECTS = {
   '5B': { blueDelta: -3, redDelta: 0 },
 };
 
-const COMMANDS = [
-  { code: 'A', team: 'blue', labelEn: '“A” Vote Blue', labelJa: 'Aで青へ投票' },
-  { code: '3A', team: 'blue', labelEn: '$3 or ¥300 + “A”', labelJa: '“A” Vote Blue ×3' },
-  { code: '5A', team: 'blue', labelEn: '$5 or ¥500 + “A”', labelJa: '“A” Attack Red ×3💣' },
-  { code: 'B', team: 'red', labelEn: '“B” Vote Red', labelJa: 'Bで赤へ投票' },
-  { code: '3B', team: 'red', labelEn: '$3 or ¥300 + “B”', labelJa: '“B” Vote Red ×3' },
-  { code: '5B', team: 'red', labelEn: '$5 or ¥500 + “B”', labelJa: '“B” Attack Blue ×3💣' },
-];
 const HUD_UPDATE_RULES = {
   marathon: {
     intervalSec: 60,
@@ -49,23 +41,6 @@ const HUD_UPDATE_RULES = {
 const COMMENT_POLL_INTERVAL_MS = 60_000;
 const FOOTBALL_SCORE_POLL_INTERVAL_MS = 60_000;
 
-const MODE_STATUS_COPY = {
-  soccer: {
-    title: 'SOCCER FAN WAR',
-    descriptionEn: 'Comment A or B to support your team.',
-    descriptionJa: 'A or Bで応援チームに投票！',
-  },
-  war: {
-    title: 'A/B FAN WAR',
-    descriptionEn: 'Comment A or B to join the war.',
-    descriptionJa: 'A or Bであなたの派閥に投票！',
-  },
-  consultation: {
-    title: 'A/B CONSULTATION',
-    descriptionEn: 'Comment A or B to vote your opinion.',
-    descriptionJa: 'A or Bで意見を投票！',
-  },
-};
 
 function formatCountdown(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -74,13 +49,14 @@ function formatCountdown(ms) {
   return `${mm}:${ss}`;
 }
 
-function FootballScoreLine({ matchId }) {
+function FootballScoreLine({ matchId, homeFallback = 'Left Team', awayFallback = 'Right Team' }) {
   const normalizedMatchId = `${matchId ?? ''}`.trim();
-  const [state, setState] = useState({ status: normalizedMatchId ? 'loading' : 'idle', text: normalizedMatchId ? '取得中...' : '試合未選択' });
+  const fallbackText = `${homeFallback} 0 - 0 ${awayFallback}`;
+  const [state, setState] = useState({ status: normalizedMatchId ? 'loading' : 'idle', text: normalizedMatchId ? 'Loading score...' : fallbackText });
 
   useEffect(() => {
     if (!normalizedMatchId) {
-      setState({ status: 'idle', text: '試合未選択' });
+      setState({ status: 'idle', text: fallbackText });
       return undefined;
     }
 
@@ -95,7 +71,7 @@ function FootballScoreLine({ matchId }) {
     };
 
     const loadScore = async () => {
-      setState((prev) => ({ status: 'loading', text: prev.status === 'success' ? prev.text : '取得中...' }));
+      setState((prev) => ({ status: 'loading', text: prev.status === 'success' ? prev.text : 'Loading score...' }));
 
       try {
         const res = await fetch(`/api/football-score?matchId=${encodeURIComponent(normalizedMatchId)}`, { cache: 'no-store' });
@@ -106,11 +82,11 @@ function FootballScoreLine({ matchId }) {
 
         const homeScore = Number.isFinite(Number(data.homeScore)) ? Number(data.homeScore) : 0;
         const awayScore = Number.isFinite(Number(data.awayScore)) ? Number(data.awayScore) : 0;
-        const homeTeam = data.homeTeam || 'Home';
-        const awayTeam = data.awayTeam || 'Away';
+        const homeTeam = data.homeTeam || homeFallback || 'Left Team';
+        const awayTeam = data.awayTeam || awayFallback || 'Right Team';
 
         if (!cancelled) {
-          setState({ status: 'success', text: `${homeTeam} ${homeScore}-${awayScore} ${awayTeam}` });
+          setState({ status: 'success', text: `${homeTeam} ${homeScore} - ${awayScore} ${awayTeam}` });
         }
 
         if (data.status === 'FINISHED') {
@@ -118,7 +94,7 @@ function FootballScoreLine({ matchId }) {
         }
       } catch {
         if (!cancelled) {
-          setState({ status: 'error', text: 'スコア取得失敗' });
+          setState({ status: 'error', text: fallbackText });
         }
       }
     };
@@ -130,9 +106,9 @@ function FootballScoreLine({ matchId }) {
       cancelled = true;
       stopPolling();
     };
-  }, [normalizedMatchId]);
+  }, [awayFallback, fallbackText, homeFallback, normalizedMatchId]);
 
-  return <p className="war-status-period-remain">{state.text}</p>;
+  return <p className={`war-live-score war-live-score-${state.status}`}>{state.text}</p>;
 }
 
 function resolveHudMode(settings) {
@@ -213,8 +189,8 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
   const [totalBalance, setTotalBalance] = useState(0);
   const [periodCommittedBalance, setPeriodCommittedBalance] = useState(0);
   const [comments, setComments] = useState([]);
-  const [topSupporters, setTopSupporters] = useState([]);
-  const [latestPaidComments, setLatestPaidComments] = useState([]);
+  const [latestFanComment, setLatestFanComment] = useState(null);
+  const [commentsAvailable, setCommentsAvailable] = useState(false);
   const [updateCycleStartedAtMs, setUpdateCycleStartedAtMs] = useState(Date.now());
   const voteCooldownRef = useRef(new Map());
   const activePeriodRef = useRef(null);
@@ -442,14 +418,17 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
       const res = await fetch(`/api/youtube/comments${pageToken}`, { cache: 'no-store' }).catch(() => null);
       if (!active) return;
       if (!res || !res.ok) {
+        setCommentsAvailable(false);
         timer = setTimeout(poll, COMMENT_POLL_INTERVAL_MS);
         return;
       }
 
       const data = await res.json();
-      setTopSupporters(Array.isArray(data.topSupporters) ? data.topSupporters : []);
-      setLatestPaidComments(Array.isArray(data.latestPaidComments) ? data.latestPaidComments : []);
       const received = Array.isArray(data.comments) ? data.comments : [];
+      setCommentsAvailable(true);
+      if (received.length > 0) {
+        setLatestFanComment(received[Math.floor(Math.random() * received.length)]);
+      }
       nextPageTokenRef.current = data.nextPageToken || '';
       const freshItems = received.filter((item) => {
         if (seenMessageIdsRef.current.has(item.id)) {
@@ -554,9 +533,6 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
   const blueBlasts = comments.filter((comment) => comment.commandCode === '5A').length;
   const redBlasts = comments.filter((comment) => comment.commandCode === '5B').length;
 
-  const latestPaid = latestPaidComments;
-  const ranking = topSupporters;
-  const modeCopy = MODE_STATUS_COPY[settings.mode] ?? MODE_STATUS_COPY.war;
   const updateCountdownMs = Math.max(0, updateCycleMs - Math.max(0, nowMs - updateCycleStartedAtMs));
   const updateRemain = formatCountdown(updateCountdownMs);
   const periodRemain = modeTime.label;
@@ -569,18 +545,17 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
       <div className="hud-stage war-stage">
         <header className="war-header panel">
           <div className="war-period-block">
-            <p className="war-status-now">Fan War Live · {modeCopy.title}</p>
+            <p className="war-status-now">Fan War Live</p>
+            <p className="war-status-sub-en">A = Left Team</p>
+            <p className="war-status-sub-ja">B = Right Team</p>
             {urlMatchId ? <p className={`war-status-sub-ja${matchLoadState.status === 'error' ? ' match-load-error' : ''}`}>{matchLoadState.message}</p> : null}
-            <p className="war-status-sub-en">{modeCopy.descriptionEn}</p>
-            <p className="war-status-sub-ja">{modeCopy.descriptionJa}</p>
           </div>
           <div className="war-title-block">
-            <p className="war-title-en">{settings.title || `${settings.sideAName} vs ${settings.sideBName}`}</p>
-            <p className="war-title-ja"><span className="team-blue">A = {settings.sideALabel}</span><span className="team-vs"> / </span><span className="team-red">B = {settings.sideBLabel}</span></p>
+            <FootballScoreLine matchId={settings.footballMatchId} homeFallback={settings.sideAName} awayFallback={settings.sideBName} />
+            <p className="war-title-ja"><span className="team-blue">A: {settings.sideALabel}</span><span className="team-vs"> / </span><span className="team-red">B: {settings.sideBLabel}</span></p>
           </div>
           <div className="war-status-block">
             <p className="war-status-period">{periodRemain}</p>
-            {settings.mode === 'soccer' ? <FootballScoreLine matchId={settings.footballMatchId} /> : <p className="war-status-period-remain">{`A = ${settings.sideAName} / B = ${settings.sideBName}`}</p>}
             {showUpdateCountdown ? <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p> : null}
           </div>
         </header>
@@ -620,42 +595,14 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
         </section>
 
         <div className="center-lane">
-          <section className="info-row">
-            <article className="panel paid-panel">
-              <h3>LATEST PAID COMMENTS</h3>
-              <div className="fixed-list">
-                {latestPaid.length === 0 ? <p className="muted">No paid comments yet.</p> : null}
-                {latestPaid.map((comment) => (
-                  <p key={comment.messageId} className="feed-line">
-                    <strong>{comment.userName}</strong>
-                    <span className="price">{comment.amountLabel}</span>
-                    <span className="ellipsis">{comment.messageText}</span>
-                  </p>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel rank-panel">
-              <h3>TOP SUPPORTERS</h3>
-              <div className="fixed-list">
-                {ranking.length === 0 ? <p className="muted">No supporters yet.</p> : null}
-                {ranking.map((entry, index) => (
-                  <p key={entry.userChannelId} className="rank-line">
-                    <strong>#{index + 1}</strong>
-                    <span className="ellipsis">{entry.userName}</span>
-                    <span>{entry.amountLabel}</span>
-                  </p>
-                ))}
-              </div>
-            </article>
-          </section>
-
-          <section className="vote-note panel">
-            <p className="vote-en">{modeCopy.descriptionEn}</p>
-            <p className="vote-ja">{modeCopy.descriptionJa} コメントは A または B のみ有効</p>
-          </section>
+          {commentsAvailable ? (
+            <section className="latest-fan-comment panel">
+              <p className="latest-fan-comment-label">Latest Fan Comment</p>
+              <p className="latest-fan-comment-text">{latestFanComment?.text ? `「${latestFanComment.text}」` : 'Comment A or B to join the battle!'}</p>
+            </section>
+          ) : null}
         </div>
-        <CommandBar commands={COMMANDS} />
+        <CommandBar />
       </div>
     </main>
   );
