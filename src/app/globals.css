@@ -405,14 +405,14 @@ body {
 
 .vote-en {
   margin: 0;
-  font-size: clamp(0.52rem, 0.82vw, 0.7rem);
+  font-size: clamp(1rem, 2vw, 1.8rem);
   font-weight: 900;
   letter-spacing: 0.01em;
 }
 
 .vote-ja {
   margin: 0.03rem 0 0;
-  font-size: clamp(0.4rem, 0.54vw, 0.52rem);
+  font-size: clamp(0.67rem, 1.33vw, 1.2rem);
   color: #e2e8f0;
   letter-spacing: 0.01em;
 }
