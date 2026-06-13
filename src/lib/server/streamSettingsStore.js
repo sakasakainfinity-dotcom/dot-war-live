@@ -18,8 +18,16 @@ function makeHeaders() {
   };
 }
 
+function getSupabaseProjectUrl() {
+  const value = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!value) {
+    throw new Error('SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL is not set');
+  }
+  return value;
+}
+
 function supabaseUrl(pathAndQuery) {
-  const base = requireEnv('SUPABASE_URL').replace(/\/$/, '');
+  const base = getSupabaseProjectUrl().replace(/\/$/, '');
   return `${base}/rest/v1/${pathAndQuery}`;
 }
 
@@ -46,7 +54,8 @@ export async function upsertCurrentStreamSettings({ videoId, liveChatId }) {
     updated_at: new Date().toISOString(),
   };
 
-  const res = await fetch(supabaseUrl(`${TABLE}?on_conflict=id`), {
+  const url = supabaseUrl(`${TABLE}?on_conflict=id`);
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       ...makeHeaders(),
@@ -55,11 +64,13 @@ export async function upsertCurrentStreamSettings({ videoId, liveChatId }) {
     body: JSON.stringify(body),
   });
 
+  const responseText = await res.text();
+  console.log('[stream-settings:upsert:response]', { status: res.status, body: responseText });
+
   if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Failed to update ${TABLE}: ${detail}`);
+    throw new Error(`Failed to update ${TABLE}: status=${res.status} body=${responseText}`);
   }
 
-  const rows = await res.json();
+  const rows = JSON.parse(responseText);
   return rows[0] || body;
 }
