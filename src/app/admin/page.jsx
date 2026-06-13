@@ -82,6 +82,7 @@ export default function AdminPage() {
   const [form, setForm] = useState(defaults);
   const [savedAt, setSavedAt] = useState('');
   const [videoIdOrUrl, setVideoIdOrUrl] = useState('');
+  const [manualLiveChatId, setManualLiveChatId] = useState('');
   const [streamInfo, setStreamInfo] = useState({ current_video_id: '', current_live_chat_id: '', updated_at: null });
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -260,7 +261,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/youtube/set-live-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoIdOrUrl }),
+        body: JSON.stringify({ videoIdOrUrl, liveChatId: manualLiveChatId }),
       });
       const text = await res.text();
       let data = null;
@@ -274,8 +275,9 @@ export default function AdminPage() {
         throw new Error(formatLiveChatError(data, `保存API失敗 status=${res.status} body=${text}`));
       }
 
-      setStatusMessage(`${data.reused ? '既存の設定を再利用しました' : '保存しました'}: videoId=${data.videoId} / liveChatId=${data.liveChatId}${data.warning ? `（警告: ${data.warning}）` : ''}`);
+      setStatusMessage(`${data.reused ? '既存の設定を再利用しました' : data.manual ? '手入力のliveChatIdを保存しました' : '保存しました'}: videoId=${data.videoId} / liveChatId=${data.liveChatId}${data.warning ? `（警告: ${data.warning}）` : ''}`);
       setVideoIdOrUrl('');
+      setManualLiveChatId('');
       await loadCurrentStreamInfo();
     } catch (error) {
       setErrorMessage(error.message || '保存処理に失敗しました');
@@ -433,8 +435,9 @@ export default function AdminPage() {
             <p><strong>最終更新:</strong> {streamInfo.updated_at ? new Date(streamInfo.updated_at).toLocaleString('ja-JP', { hour12: false }) : '未更新'}</p>
           </div>
           <TextField label="動画IDまたはYouTubeライブURL" value={videoIdOrUrl} onChange={setVideoIdOrUrl} placeholder="例: NCBNKK-kGZc / https://youtube.com/live/NCBNKK-kGZc" />
+          <TextField label="liveChatId（任意・入力時はYouTube APIを呼ばず保存）" value={manualLiveChatId} onChange={setManualLiveChatId} placeholder="例: Cg0KC05DQk5LSy1HWmM..." />
           <div className="admin-actions">
-            <button type="button" onClick={handleSaveLiveChatId} disabled={isSavingLiveChat}>{isSavingLiveChat ? '取得中...' : 'liveChatIdを取得して保存'}</button>
+            <button type="button" onClick={handleSaveLiveChatId} disabled={isSavingLiveChat}>{isSavingLiveChat ? '保存中...' : manualLiveChatId.trim() ? 'videoId/liveChatIdを保存' : 'liveChatIdを1回だけ取得して保存'}</button>
           </div>
           {statusMessage ? <p className="admin-success">{statusMessage}</p> : null}
           {errorMessage ? <p className="admin-error">{errorMessage}</p> : null}
