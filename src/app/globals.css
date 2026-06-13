@@ -255,8 +255,7 @@ body {
 }
 
 .team-side-left {
-  left: 0.7rem;
-  color: #7dd3fc;
+  display: none;
 }
 
 .team-side-right {
@@ -270,6 +269,8 @@ body {
   min-height: 0;
   height: 100%;
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.14rem;
 }
 
 .battle-grid {
@@ -287,7 +288,7 @@ body {
 .battle-grid-midline {
   position: absolute;
   top: 0.34rem;
-  bottom: 0.34rem;
+  bottom: 2.1rem;
   left: 50%;
   width: 4px;
   transform: translateX(-50%);
@@ -396,6 +397,10 @@ body {
   text-align: center;
   padding: 0.12rem 0.28rem 0.14rem;
   line-height: 1.06;
+}
+
+.battle-grid-vote-note {
+  align-self: end;
 }
 
 .vote-en {
