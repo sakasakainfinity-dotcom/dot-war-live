@@ -46,7 +46,7 @@ export async function upsertCurrentStreamSettings({ videoId, liveChatId }) {
     updated_at: new Date().toISOString(),
   };
 
-  const res = await fetch(supabaseUrl(TABLE), {
+  const res = await fetch(supabaseUrl(`${TABLE}?on_conflict=id`), {
     method: 'POST',
     headers: {
       ...makeHeaders(),
