@@ -235,7 +235,9 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
         const res = await fetch(`/api/matches/${encodeURIComponent(urlMatchId)}`, { cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok || !data.match?.settings) {
-          throw new Error(data.error || '試合設定を取得できませんでした');
+          const error = new Error(data.error || '試合設定を取得できませんでした');
+          error.code = data.code || '';
+          throw error;
         }
 
         if (!cancelled) {
@@ -244,7 +246,14 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
         }
       } catch (error) {
         if (!cancelled) {
-          setMatchLoadState({ status: 'error', message: error.message || '試合設定を取得できませんでした' });
+          const canUseUrlSettings = Boolean(urlSettings);
+          const tableMissing = error.code === 'LIVE_MATCHES_TABLE_MISSING';
+          setMatchLoadState({
+            status: canUseUrlSettings && tableMissing ? 'success' : 'error',
+            message: canUseUrlSettings && tableMissing
+              ? `URL内のチーム名で表示中: matchId=${urlMatchId}（DB未初期化）`
+              : error.message || '試合設定を取得できませんでした',
+          });
         }
       }
     };
