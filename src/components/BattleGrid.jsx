@@ -21,6 +21,10 @@ export function BattleGrid({ grid }) {
         )}
       </div>
       <div className="battle-grid-midline" aria-hidden />
+      <div className="vote-note battle-grid-vote-note" aria-label="Voting instructions">
+        <p className="vote-en">Comment only &quot;A&quot; or &quot;B&quot;</p>
+        <p className="vote-ja">AかBをコメントしてください。</p>
+      </div>
     </div>
   );
 }
