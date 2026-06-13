@@ -38,6 +38,7 @@ const HUD_UPDATE_RULES = {
   },
 };
 const COMMENT_POLL_INTERVAL_MS = 60_000;
+const COMMENT_POLL_MIN_INTERVAL_MS = 5_000;
 const FOOTBALL_SCORE_POLL_INTERVAL_MS = 60_000;
 
 
@@ -422,8 +423,7 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
     let timer;
 
     const poll = async () => {
-      const pageToken = nextPageTokenRef.current ? `?pageToken=${encodeURIComponent(nextPageTokenRef.current)}` : '';
-      const res = await fetch(`/api/youtube/comments${pageToken}`, { cache: 'no-store' }).catch(() => null);
+      const res = await fetch('/api/youtube/comments', { cache: 'no-store' }).catch(() => null);
       if (!active) return;
       if (!res || !res.ok) {
         setCommentsAvailable(false);
@@ -434,7 +434,7 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
       const data = await res.json();
       const received = Array.isArray(data.comments) ? data.comments : [];
       setCommentsAvailable(true);
-      nextPageTokenRef.current = data.nextPageToken || '';
+      nextPageTokenRef.current = ''; // YouTube nextPageToken is held server-side so each browser does not multiply API calls.
       const freshItems = received.filter((item) => {
         if (seenMessageIdsRef.current.has(item.id)) {
           console.log('[youtube:ignored-comment]', {
@@ -480,7 +480,7 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
         processAiReaction(item);
       });
 
-      timer = setTimeout(poll, COMMENT_POLL_INTERVAL_MS);
+      timer = setTimeout(poll, Math.max(Number(data.pollingIntervalMs || COMMENT_POLL_INTERVAL_MS), COMMENT_POLL_MIN_INTERVAL_MS));
     };
 
     poll();

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAdminRequest } from '../../../../../lib/server/adminAuth';
 import { readCurrentStreamSettings, upsertCurrentStreamSettings } from '../../../../../lib/server/streamSettingsStore';
+import { assertYoutubeApiCallAllowed, recordYoutubeApiCall, recordYoutubeQuotaExceeded } from '../../../../../lib/server/youtubeApiUsage';
 import { extractYoutubeVideoId } from '../../../../../lib/youtubeVideoId';
 
 function jsonError({ step, message, detail, status = 500, videoId = '', youtubeStatus, saveStatus }) {
@@ -52,6 +53,7 @@ export async function POST(request) {
   }
 
   const videoIdOrUrl = `${body.videoIdOrUrl ?? body.videoId ?? ''}`.trim();
+  const manualLiveChatId = `${body.liveChatId ?? ''}`.trim();
   const extraction = extractYoutubeVideoId(videoIdOrUrl);
   const videoId = extraction.ok ? extraction.videoId : '';
 
@@ -66,7 +68,7 @@ export async function POST(request) {
     });
   }
 
-  console.log('[youtube:set-live-chat:parse-video-id:success]', { input: videoIdOrUrl, videoId });
+  console.log('[youtube:set-live-chat:parse-video-id:success]', { input: videoIdOrUrl, videoId, hasManualLiveChatId: Boolean(manualLiveChatId) });
 
   let currentSettings = null;
   try {
@@ -75,9 +77,26 @@ export async function POST(request) {
     logCaughtError('[youtube:set-live-chat:read-current-settings:caught]', error, { videoId });
   }
 
+  if (manualLiveChatId) {
+    try {
+      const saved = await upsertCurrentStreamSettings({ videoId, liveChatId: manualLiveChatId });
+      console.log('[youtube:set-live-chat:save-manual-live-chat-id:success]', { videoId, liveChatId: manualLiveChatId, saved });
+      return NextResponse.json({ ok: true, videoId, liveChatId: manualLiveChatId, manual: true });
+    } catch (error) {
+      logCaughtError('[youtube:set-live-chat:save-manual-live-chat-id:caught]', error, { videoId, liveChatId: manualLiveChatId });
+      return jsonError({ step: 'save_db', message: error.message, detail: error.stack, status: 500, videoId });
+    }
+  }
+
   if (currentSettings?.current_video_id === videoId && currentSettings?.current_live_chat_id) {
     console.log('[youtube:set-live-chat:reuse-current-settings]', { videoId, liveChatId: currentSettings.current_live_chat_id });
     return NextResponse.json({ ok: true, videoId, liveChatId: currentSettings.current_live_chat_id, reused: true });
+  }
+
+  try {
+    assertYoutubeApiCallAllowed('videos.list');
+  } catch (error) {
+    return jsonError({ step: 'youtube_fetch', message: error.message, status: 429, videoId });
   }
 
   if (!process.env.YOUTUBE_API_KEY) {
@@ -94,11 +113,13 @@ export async function POST(request) {
 
   let data;
   try {
+    recordYoutubeApiCall('videos.list');
     const ytRes = await fetch(endpoint, { cache: 'no-store' });
     const responseText = await ytRes.text();
     console.log('[youtube:set-live-chat:youtube-fetch:response]', { videoId, apiUrl: safeApiUrl, status: ytRes.status, body: responseText });
 
     if (!ytRes.ok) {
+      if (ytRes.status === 403 && responseText.includes('quotaExceeded')) recordYoutubeQuotaExceeded('videos.list', responseText);
       if (ytRes.status === 403 && responseText.includes('quotaExceeded') && currentSettings?.current_video_id === videoId && currentSettings?.current_live_chat_id) {
         console.warn('[youtube:set-live-chat:youtube-fetch:quota-reuse-current-settings]', { videoId, liveChatId: currentSettings.current_live_chat_id });
         return NextResponse.json({ ok: true, videoId, liveChatId: currentSettings.current_live_chat_id, reused: true, warning: explainYoutubeFailure(ytRes.status, responseText) });

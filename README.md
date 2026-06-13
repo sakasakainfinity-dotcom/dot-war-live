@@ -39,3 +39,16 @@ npm run check
 2. YouTube/Twitch 受信Botを追加
 3. Next API Route で `ChatEvent -> parse -> applyAction -> persist` のパイプラインを実装
 4. Supabase Realtime で配信画面に状態配信
+
+## YouTube Data API quota safety
+
+Fan War Live does not use `search.list` to discover live streams. Register the stream `videoId` before the broadcast, and preferably save the `liveChatId` manually from the admin screen. If `liveChatId` is omitted, the admin save action calls `videos.list` once to resolve `activeLiveChatId` and stores it.
+
+Runtime safeguards:
+
+- `YOUTUBE_API_ENABLED=false` blocks all YouTube Data API calls.
+- `MOCK_COMMENTS_ENABLED=true` returns dummy comments for local verification without calling YouTube.
+- `MAX_YOUTUBE_API_CALLS_PER_DAY=1000` sets an app-side daily call limit.
+- Comment ingestion is centralized in `/api/youtube/comments`; browsers and OBS sources read this app API instead of calling YouTube directly.
+- The server uses only `liveChatMessages.list` for comments, stores `nextPageToken` in memory, follows YouTube's `pollingIntervalMillis`, and exponentially backs off on errors.
+- YouTube API usage is logged per method, hourly, and daily. `quotaExceeded` automatically stops further calls for the day.
