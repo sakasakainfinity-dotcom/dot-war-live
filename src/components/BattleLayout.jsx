@@ -12,7 +12,6 @@ import { chooseVoiceForLanguage } from '../lib/ai/comment-reaction-service';
 import { buildAnnouncementContext, buildAnnouncementMessage } from '../lib/announcer/announcement-service';
 import { createAnnouncementQueue, shouldScheduleAutoAnnouncement } from '../lib/announcer/announcement-scheduler';
 import { BattleGrid } from './BattleGrid';
-import { CommandBar } from './CommandGuideDock';
 import { BgmController } from './overlay/BgmController';
 
 const BOARD_ROWS = 10;
@@ -544,15 +543,10 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
       <BgmController settings={settings} currentPeriod={activePeriod} />
       <div className="hud-stage war-stage">
         <header className="war-header panel">
-          <div className="war-period-block">
-            <p className="war-status-now">COMMENT A OR B</p>
-            <p className="war-status-sub-en">Support your team</p>
-            <p className="war-status-sub-ja">A = Left / B = Right</p>
-            {urlMatchId ? <p className={`war-status-sub-ja${matchLoadState.status === 'error' ? ' match-load-error' : ''}`}>{matchLoadState.message}</p> : null}
-          </div>
           <div className="war-title-block">
             <FootballScoreLine matchId={settings.footballMatchId} homeFallback={settings.sideAName} awayFallback={settings.sideBName} />
             <p className="war-title-ja"><span className="team-blue">A: {settings.sideALabel}</span><span className="team-vs"> / </span><span className="team-red">B: {settings.sideBLabel}</span></p>
+            {urlMatchId ? <p className={`war-status-sub-ja${matchLoadState.status === 'error' ? ' match-load-error' : ''}`}>{matchLoadState.message}</p> : null}
           </div>
           <div className="war-status-block">
             <p className="war-status-period">決着まで {periodRemain}</p>
@@ -573,7 +567,6 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
             <p className="live-comment-text">{latestFanComment?.text || (commentsAvailable ? 'コメントを表示' : '取得してきた\nコメントを表示')}</p>
           </aside>
         </section>
-        <CommandBar />
       </div>
     </main>
   );

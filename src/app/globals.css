@@ -1286,14 +1286,14 @@ body {
 
 .war-stage {
   padding: clamp(0.38rem, 0.8vw, 0.72rem);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: clamp(0.34rem, 0.75vw, 0.68rem);
   border: 2px solid rgba(168, 85, 247, 0.65);
   box-shadow: inset 0 0 28px rgba(59, 130, 246, 0.16), 0 0 26px rgba(168, 85, 247, 0.22);
 }
 
 .war-header {
-  grid-template-columns: minmax(150px, 0.82fr) minmax(0, 2.1fr) minmax(150px, 0.82fr);
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 0.36fr);
   padding: clamp(0.42rem, 0.95vw, 0.86rem) clamp(0.58rem, 1.3vw, 1.18rem);
   border: 4px solid rgba(255, 255, 255, 0.92);
   border-radius: 2px;
@@ -1316,24 +1316,24 @@ body {
 }
 
 .war-live-score {
-  font-size: clamp(2rem, 5.45vw, 5.35rem);
+  font-size: clamp(1.35rem, 3.65vw, 3.6rem);
   letter-spacing: -0.055em;
   text-shadow: 0 4px 0 #111827, 0 0 18px rgba(255,255,255,0.25);
 }
 
 .war-title-ja {
-  font-size: clamp(0.82rem, 1.45vw, 1.28rem);
+  font-size: clamp(0.62rem, 0.98vw, 0.86rem);
 }
 
 .war-status-period {
   color: #dbeafe;
-  font-size: clamp(0.94rem, 1.62vw, 1.5rem);
+  font-size: clamp(0.72rem, 1.08vw, 1rem);
   line-height: 1.06;
 }
 
 .war-status-next {
   color: #fde047;
-  font-size: clamp(0.84rem, 1.42vw, 1.32rem);
+  font-size: clamp(0.64rem, 0.96vw, 0.9rem);
   font-weight: 950;
 }
 
@@ -1431,7 +1431,7 @@ body {
 
 @media (max-width: 900px) {
   .war-header {
-    grid-template-columns: minmax(100px, 0.75fr) minmax(0, 1.65fr) minmax(112px, 0.75fr);
+    grid-template-columns: minmax(0, 1fr) minmax(130px, 0.38fr);
   }
   .battle-zone {
     grid-template-columns: minmax(0, 2.7fr) minmax(170px, 0.9fr);
