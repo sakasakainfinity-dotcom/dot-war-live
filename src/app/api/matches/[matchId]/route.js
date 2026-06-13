@@ -17,6 +17,6 @@ export async function GET(_request, { params }) {
 
     return NextResponse.json({ ok: true, match });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: error.message, code: error.code || '' }, { status: error.code === 'LIVE_MATCHES_TABLE_MISSING' ? 503 : 500 });
   }
 }

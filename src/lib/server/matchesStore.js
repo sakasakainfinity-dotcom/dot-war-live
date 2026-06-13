@@ -25,6 +25,17 @@ function supabaseUrl(pathAndQuery) {
   return `${base}/rest/v1/${pathAndQuery}`;
 }
 
+
+function isMissingLiveMatchesTableError(detail) {
+  return `${detail}`.includes('PGRST205') || `${detail}`.includes("Could not find the table 'public.live_matches'");
+}
+
+function makeMissingLiveMatchesTableError() {
+  const error = new Error('試合設定テーブル live_matches が未作成です。Supabaseで supabase/migrations/202606090001_live_matches.sql を適用してください。');
+  error.code = 'LIVE_MATCHES_TABLE_MISSING';
+  return error;
+}
+
 function makeMatchSummary(row) {
   const settings = normalizeLiveSettings(row.settings || {});
   return {
@@ -50,6 +61,7 @@ export async function readLiveMatch(matchId) {
 
   if (!res.ok) {
     const detail = await res.text();
+    if (isMissingLiveMatchesTableError(detail)) throw makeMissingLiveMatchesTableError();
     throw new Error(`Failed to read ${TABLE}: ${detail}`);
   }
 
@@ -74,6 +86,7 @@ export async function listLiveMatches(limit = 30) {
 
   if (!res.ok) {
     const detail = await res.text();
+    if (isMissingLiveMatchesTableError(detail)) throw makeMissingLiveMatchesTableError();
     throw new Error(`Failed to list ${TABLE}: ${detail}`);
   }
 
@@ -106,6 +119,7 @@ export async function upsertLiveMatch({ matchId, settings }) {
 
   if (!res.ok) {
     const detail = await res.text();
+    if (isMissingLiveMatchesTableError(detail)) throw makeMissingLiveMatchesTableError();
     throw new Error(`Failed to upsert ${TABLE}: ${detail}`);
   }
 

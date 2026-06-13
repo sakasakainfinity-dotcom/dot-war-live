@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkAdminRequest } from '../../../../../lib/server/adminAuth';
-import { upsertCurrentStreamSettings } from '../../../../../lib/server/streamSettingsStore';
+import { readCurrentStreamSettings, upsertCurrentStreamSettings } from '../../../../../lib/server/streamSettingsStore';
 import { extractYoutubeVideoId } from '../../../../../lib/youtubeVideoId';
 
 function jsonError({ step, message, detail, status = 500, videoId = '', youtubeStatus, saveStatus }) {
@@ -29,6 +29,9 @@ function logCaughtError(label, error, extra = {}) {
 
 function explainYoutubeFailure(status, body) {
   if (status === 400) return 'YouTube APIリクエストが不正です。videoIdまたはAPIキー設定を確認してください。';
+  if (status === 403 && `${body}`.includes('quotaExceeded')) {
+    return 'YouTube APIの1日あたりの割り当て上限に達しています。コメント取得は1分に1回ですが、この保存処理ではliveChatId確認のため動画情報APIを1回呼び出します。日次クォータ回復後に再実行してください。';
+  }
   if (status === 403) return 'YouTube API key is invalid, quota exceeded, or permission is denied.';
   if (status === 404) return 'videoIdが間違っているか、動画が見つかりません。';
   return `YouTube APIの呼び出しに失敗しました (status=${status})`;
@@ -65,6 +68,18 @@ export async function POST(request) {
 
   console.log('[youtube:set-live-chat:parse-video-id:success]', { input: videoIdOrUrl, videoId });
 
+  let currentSettings = null;
+  try {
+    currentSettings = await readCurrentStreamSettings();
+  } catch (error) {
+    logCaughtError('[youtube:set-live-chat:read-current-settings:caught]', error, { videoId });
+  }
+
+  if (currentSettings?.current_video_id === videoId && currentSettings?.current_live_chat_id) {
+    console.log('[youtube:set-live-chat:reuse-current-settings]', { videoId, liveChatId: currentSettings.current_live_chat_id });
+    return NextResponse.json({ ok: true, videoId, liveChatId: currentSettings.current_live_chat_id, reused: true });
+  }
+
   if (!process.env.YOUTUBE_API_KEY) {
     console.error('[youtube:set-live-chat:youtube-fetch:missing-env]', { videoId, missingEnv: ['YOUTUBE_API_KEY'] });
     return jsonError({ step: 'youtube_fetch', message: 'APIキーが未設定です: YOUTUBE_API_KEY', status: 500, videoId });
@@ -84,6 +99,10 @@ export async function POST(request) {
     console.log('[youtube:set-live-chat:youtube-fetch:response]', { videoId, apiUrl: safeApiUrl, status: ytRes.status, body: responseText });
 
     if (!ytRes.ok) {
+      if (ytRes.status === 403 && responseText.includes('quotaExceeded') && currentSettings?.current_video_id === videoId && currentSettings?.current_live_chat_id) {
+        console.warn('[youtube:set-live-chat:youtube-fetch:quota-reuse-current-settings]', { videoId, liveChatId: currentSettings.current_live_chat_id });
+        return NextResponse.json({ ok: true, videoId, liveChatId: currentSettings.current_live_chat_id, reused: true, warning: explainYoutubeFailure(ytRes.status, responseText) });
+      }
       return jsonError({ step: 'youtube_fetch', message: explainYoutubeFailure(ytRes.status, responseText), detail: responseText, status: 502, videoId, youtubeStatus: ytRes.status });
     }
 

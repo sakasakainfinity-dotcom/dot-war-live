@@ -274,7 +274,7 @@ export default function AdminPage() {
         throw new Error(formatLiveChatError(data, `保存API失敗 status=${res.status} body=${text}`));
       }
 
-      setStatusMessage(`保存しました: videoId=${data.videoId} / liveChatId=${data.liveChatId}`);
+      setStatusMessage(`${data.reused ? '既存の設定を再利用しました' : '保存しました'}: videoId=${data.videoId} / liveChatId=${data.liveChatId}${data.warning ? `（警告: ${data.warning}）` : ''}`);
       setVideoIdOrUrl('');
       await loadCurrentStreamInfo();
     } catch (error) {
