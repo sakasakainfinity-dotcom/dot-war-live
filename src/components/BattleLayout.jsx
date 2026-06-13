@@ -188,7 +188,7 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
   const [totalBalance, setTotalBalance] = useState(0);
   const [periodCommittedBalance, setPeriodCommittedBalance] = useState(0);
   const [comments, setComments] = useState([]);
-  const [latestFanComment, setLatestFanComment] = useState(null);
+  const [latestFanComments, setLatestFanComments] = useState([]);
   const [commentsAvailable, setCommentsAvailable] = useState(false);
   const [updateCycleStartedAtMs, setUpdateCycleStartedAtMs] = useState(Date.now());
   const voteCooldownRef = useRef(new Map());
@@ -425,9 +425,6 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
       const data = await res.json();
       const received = Array.isArray(data.comments) ? data.comments : [];
       setCommentsAvailable(true);
-      if (received.length > 0) {
-        setLatestFanComment(received[Math.floor(Math.random() * received.length)]);
-      }
       nextPageTokenRef.current = data.nextPageToken || '';
       const freshItems = received.filter((item) => {
         if (seenMessageIdsRef.current.has(item.id)) {
@@ -443,6 +440,18 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
         seenMessageIdsRef.current.add(item.id);
         return true;
       });
+
+      if (freshItems.length > 0) {
+        setLatestFanComments((prev) => {
+          const newEntries = freshItems.map((item) => ({
+            id: item.id || `${Date.now()}-${Math.random()}`,
+            text: item.text || '',
+            userName: item?.user?.name || '',
+            createdAt: Date.now(),
+          }));
+          return [...newEntries, ...prev].slice(0, 4);
+        });
+      }
 
       freshItems.reverse().forEach((item) => {
         const now = Date.now();
@@ -549,8 +558,8 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
             {urlMatchId ? <p className={`war-status-sub-ja${matchLoadState.status === 'error' ? ' match-load-error' : ''}`}>{matchLoadState.message}</p> : null}
           </div>
           <div className="war-status-block">
-            <p className="war-status-period">決着まで {periodRemain}</p>
-            {showUpdateCountdown ? <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p> : null}
+            <p className="war-status-period">{periodRemain}</p>
+            {showUpdateCountdown ? <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`update ${updateRemain}`}</p> : null}
           </div>
         </header>
 
@@ -563,8 +572,16 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
 
           <aside className="panel live-comment-panel" aria-label="YouTube live comment preview">
             <p className="live-comment-kicker">LIVE COMMENT</p>
-            {latestFanComment?.user?.name ? <p className="live-comment-author">{latestFanComment.user.name}</p> : null}
-            <p className="live-comment-text">{latestFanComment?.text || (commentsAvailable ? 'コメントを表示' : '取得してきた\nコメントを表示')}</p>
+            <div className="live-comment-list">
+              {latestFanComments.length > 0 ? latestFanComments.slice().reverse().map((comment) => (
+                <div className="live-comment-item" key={comment.id}>
+                  {comment.userName ? <p className="live-comment-author">{comment.userName}</p> : null}
+                  <p className="live-comment-text">{comment.text}</p>
+                </div>
+              )) : (
+                <p className="live-comment-empty">{commentsAvailable ? 'コメントを表示' : '取得してきた\nコメントを表示'}</p>
+              )}
+            </div>
           </aside>
         </section>
       </div>
