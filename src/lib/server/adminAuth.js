@@ -8,20 +8,25 @@ export function checkAdminRequest(request) {
 
   const origin = request.headers.get('origin') || '';
   const referer = request.headers.get('referer') || '';
+  const requestHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
 
   const originHost = safeHost(origin);
   const refererHost = safeHost(referer);
   const refererPath = safePath(referer);
+  const sameOriginAdminReferer = refererHost && refererPath.startsWith('/admin') && (
+    (originHost && originHost === refererHost) ||
+    (!originHost && requestHost && requestHost === refererHost)
+  );
 
-  if (originHost && refererHost && originHost === refererHost && refererPath.startsWith('/admin')) {
+  if (sameOriginAdminReferer) {
     return { ok: true };
   }
 
   return {
     ok: false,
     error: adminToken
-      ? '管理者権限がありません（x-admin-token または /admin 由来のリクエストが必要です）'
-      : '管理者権限がありません（/admin 由来のリクエストのみ許可）',
+      ? '管理者権限がありません（x-admin-token または /admin 由来の同一オリジンリクエストが必要です）'
+      : '管理者権限がありません（/admin 由来の同一オリジンリクエストのみ許可）',
   };
 }
 
