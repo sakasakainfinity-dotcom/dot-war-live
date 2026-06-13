@@ -12,11 +12,10 @@ import { chooseVoiceForLanguage } from '../lib/ai/comment-reaction-service';
 import { buildAnnouncementContext, buildAnnouncementMessage } from '../lib/announcer/announcement-service';
 import { createAnnouncementQueue, shouldScheduleAutoAnnouncement } from '../lib/announcer/announcement-scheduler';
 import { BattleGrid } from './BattleGrid';
-import { CommandBar } from './CommandGuideDock';
 import { BgmController } from './overlay/BgmController';
 
-const BOARD_ROWS = 6;
-const BOARD_COLS = 14;
+const BOARD_ROWS = 10;
+const BOARD_COLS = 20;
 const COMMAND_EFFECTS = {
   A: { blueDelta: 1, redDelta: 0 },
   '3A': { blueDelta: 3, redDelta: 0 },
@@ -544,65 +543,30 @@ export function BattleLayout({ initialMatchId = '', initialMatchSettings = null,
       <BgmController settings={settings} currentPeriod={activePeriod} />
       <div className="hud-stage war-stage">
         <header className="war-header panel">
-          <div className="war-period-block">
-            <p className="war-status-now">Fan War Live</p>
-            <p className="war-status-sub-en">A = Left Team</p>
-            <p className="war-status-sub-ja">B = Right Team</p>
-            {urlMatchId ? <p className={`war-status-sub-ja${matchLoadState.status === 'error' ? ' match-load-error' : ''}`}>{matchLoadState.message}</p> : null}
-          </div>
           <div className="war-title-block">
             <FootballScoreLine matchId={settings.footballMatchId} homeFallback={settings.sideAName} awayFallback={settings.sideBName} />
             <p className="war-title-ja"><span className="team-blue">A: {settings.sideALabel}</span><span className="team-vs"> / </span><span className="team-red">B: {settings.sideBLabel}</span></p>
+            {urlMatchId ? <p className={`war-status-sub-ja${matchLoadState.status === 'error' ? ' match-load-error' : ''}`}>{matchLoadState.message}</p> : null}
           </div>
           <div className="war-status-block">
-            <p className="war-status-period">{periodRemain}</p>
+            <p className="war-status-period">決着まで {periodRemain}</p>
             {showUpdateCountdown ? <p className={`war-status-next${isUpdateUrgent ? ' war-status-next-urgent' : ''}`}>{`${hudRule.titleEn} ${updateRemain}`}</p> : null}
           </div>
         </header>
 
         <section className="battle-zone">
-          <aside className="panel side-tank side-tank-blue">
-            <p className="tank-top-label">Total Score</p>
-            <p className="tank-big-score">{blueCells.toLocaleString()}</p>
-            <div className="meter-shell">
-              <div className="meter-fill meter-fill-blue" style={{ height: `${(blueCells / (BOARD_ROWS * BOARD_COLS)) * 100}%` }} />
-              {Array.from({ length: 10 }).map((_, idx) => <i key={idx} className="meter-tick" style={{ bottom: `${idx * 10}%` }} />)}
-            </div>
-            <div className="tank-foot">
-              <p>Total votes {blueVotes}</p>
-              <p>Total Blasts {blueBlasts}</p>
-            </div>
-          </aside>
-
           <section className="battle-main panel">
             <div className="team-side-label team-side-left">{settings.sideAName}</div>
             <div className="team-side-label team-side-right">{settings.sideBName}</div>
             <BattleGrid grid={grid} />
           </section>
 
-          <aside className="panel side-tank side-tank-red">
-            <p className="tank-top-label">Total Score</p>
-            <p className="tank-big-score">{redCells.toLocaleString()}</p>
-            <div className="meter-shell">
-              <div className="meter-fill meter-fill-red" style={{ height: `${(redCells / (BOARD_ROWS * BOARD_COLS)) * 100}%` }} />
-              {Array.from({ length: 10 }).map((_, idx) => <i key={idx} className="meter-tick" style={{ bottom: `${idx * 10}%` }} />)}
-            </div>
-            <div className="tank-foot">
-              <p>Total votes {redVotes}</p>
-              <p>Total Blasts {redBlasts}</p>
-            </div>
+          <aside className="panel live-comment-panel" aria-label="YouTube live comment preview">
+            <p className="live-comment-kicker">LIVE COMMENT</p>
+            {latestFanComment?.user?.name ? <p className="live-comment-author">{latestFanComment.user.name}</p> : null}
+            <p className="live-comment-text">{latestFanComment?.text || (commentsAvailable ? 'コメントを表示' : '取得してきた\nコメントを表示')}</p>
           </aside>
         </section>
-
-        <div className="center-lane">
-          {commentsAvailable ? (
-            <section className="latest-fan-comment panel">
-              <p className="latest-fan-comment-label">Latest Fan Comment</p>
-              <p className="latest-fan-comment-text">{latestFanComment?.text ? `「${latestFanComment.text}」` : 'Comment A or B to join the battle!'}</p>
-            </section>
-          ) : null}
-        </div>
-        <CommandBar />
       </div>
     </main>
   );

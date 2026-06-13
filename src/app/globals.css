@@ -1274,3 +1274,166 @@ body {
     width: min(100%, calc(100% - 184px - 1rem));
   }
 }
+
+/* OBS neon arena layout: header / large 10x20 board / right comment / bottom CTA. */
+.hud-root {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(168, 85, 247, 0.18), transparent 34%),
+    radial-gradient(circle at 14% 82%, rgba(37, 99, 235, 0.18), transparent 30%),
+    radial-gradient(circle at 86% 82%, rgba(220, 38, 38, 0.14), transparent 30%),
+    #030712;
+}
+
+.war-stage {
+  padding: clamp(0.38rem, 0.8vw, 0.72rem);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(0.34rem, 0.75vw, 0.68rem);
+  border: 2px solid rgba(168, 85, 247, 0.65);
+  box-shadow: inset 0 0 28px rgba(59, 130, 246, 0.16), 0 0 26px rgba(168, 85, 247, 0.22);
+}
+
+.war-header {
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 0.36fr);
+  padding: clamp(0.42rem, 0.95vw, 0.86rem) clamp(0.58rem, 1.3vw, 1.18rem);
+  border: 4px solid rgba(255, 255, 255, 0.92);
+  border-radius: 2px;
+  background: rgba(3, 7, 18, 0.82);
+}
+
+.war-period-block { gap: 0.12rem; }
+.war-status-block { min-width: 0; }
+
+.war-status-now {
+  color: #fff;
+  font-size: clamp(0.96rem, 1.9vw, 1.8rem);
+  line-height: 1.05;
+}
+
+.war-status-sub-en,
+.war-status-sub-ja {
+  font-size: clamp(0.7rem, 1.08vw, 1.02rem);
+  color: #e5e7eb;
+}
+
+.war-live-score {
+  font-size: clamp(1.35rem, 3.65vw, 3.6rem);
+  letter-spacing: -0.055em;
+  text-shadow: 0 4px 0 #111827, 0 0 18px rgba(255,255,255,0.25);
+}
+
+.war-title-ja {
+  font-size: clamp(0.62rem, 0.98vw, 0.86rem);
+}
+
+.war-status-period {
+  color: #dbeafe;
+  font-size: clamp(0.72rem, 1.08vw, 1rem);
+  line-height: 1.06;
+}
+
+.war-status-next {
+  color: #fde047;
+  font-size: clamp(0.64rem, 0.96vw, 0.9rem);
+  font-weight: 950;
+}
+
+.battle-zone {
+  min-height: 0;
+  max-height: none;
+  display: grid;
+  grid-template-columns: minmax(0, 3.25fr) minmax(220px, 1.05fr);
+  gap: clamp(0.34rem, 0.7vw, 0.62rem);
+}
+
+.battle-main {
+  padding: clamp(0.38rem, 0.72vw, 0.68rem);
+  overflow: hidden;
+  background: rgba(2, 6, 23, 0.88);
+}
+
+.battle-grid {
+  gap: clamp(2px, 0.34vw, 5px);
+  padding: clamp(0.34rem, 0.72vw, 0.68rem);
+  border-color: rgba(96, 165, 250, 0.48);
+  border-radius: 14px;
+}
+
+.grid-cell {
+  border-radius: clamp(3px, 0.45vw, 8px);
+}
+
+.team-side-label {
+  top: clamp(0.5rem, 1vw, 0.92rem);
+  padding: 0.12rem 0.52rem;
+  border-radius: 8px;
+  font-size: clamp(1rem, 2vw, 1.8rem);
+  background: rgba(3, 7, 18, 0.92);
+}
+
+.live-comment-panel {
+  min-width: 0;
+  padding: clamp(0.7rem, 1.4vw, 1.2rem);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(8, 8, 16, 0.98));
+  border-radius: 0;
+}
+
+.live-comment-kicker,
+.live-comment-author,
+.live-comment-text { margin: 0; }
+
+.live-comment-kicker {
+  color: #94a3b8;
+  font-size: clamp(0.62rem, 1vw, 0.92rem);
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.live-comment-author {
+  margin-top: 0.35rem;
+  color: #fde68a;
+  font-size: clamp(0.72rem, 1.1vw, 1rem);
+  font-weight: 800;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-comment-text {
+  margin-top: 0.5rem;
+  color: #fff;
+  font-size: clamp(1.15rem, 2.35vw, 2.35rem);
+  font-weight: 950;
+  line-height: 1.25;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-shadow: 0 0 16px rgba(255,255,255,0.16);
+}
+
+.simple-command-banner {
+  min-height: clamp(82px, 12.6vh, 132px);
+  border: 3px solid rgba(250, 204, 21, 0.95);
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(29, 78, 216, 0.92), rgba(15, 23, 42, 0.96) 48%, rgba(185, 28, 28, 0.94));
+}
+
+.simple-command-main {
+  font-size: clamp(2.2rem, 6.1vw, 6.1rem);
+}
+
+.simple-command-sub {
+  font-size: clamp(0.82rem, 1.55vw, 1.45rem);
+}
+
+@media (max-width: 900px) {
+  .war-header {
+    grid-template-columns: minmax(0, 1fr) minmax(130px, 0.38fr);
+  }
+  .battle-zone {
+    grid-template-columns: minmax(0, 2.7fr) minmax(170px, 0.9fr);
+  }
+}
