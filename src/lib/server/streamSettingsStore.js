@@ -121,6 +121,9 @@ export async function upsertCurrentStreamSettings({ videoId, liveChatId }) {
   const responseText = await res.text();
   console.log('[stream-settings:upsert:response]', { status: res.status, body: responseText });
 
+  const responseText = await res.text();
+  console.log('[stream-settings:upsert:response]', { status: res.status, body: responseText });
+
   if (!res.ok) {
     throw new StreamSettingsStoreError(`Supabase REST API returned status=${res.status}`, {
       detail: responseText,
