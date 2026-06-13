@@ -12,6 +12,23 @@ const MODE_OPTIONS = [
   { value: 'consultation', label: '2択相談モード' },
 ];
 
+
+function formatLiveChatError(payload, fallbackMessage) {
+  if (!payload || typeof payload !== 'object') {
+    return `保存処理に失敗しました\nmessage: ${fallbackMessage}`;
+  }
+
+  return [
+    '保存処理に失敗しました',
+    payload.step ? `step: ${payload.step}` : null,
+    payload.status ? `status: ${payload.status}` : null,
+    payload.youtubeStatus ? `youtubeStatus: ${payload.youtubeStatus}` : null,
+    payload.saveStatus ? `saveStatus: ${payload.saveStatus}` : null,
+    payload.message ? `message: ${payload.message}` : null,
+    payload.detail ? `detail: ${payload.detail}` : null,
+  ].filter(Boolean).join('\n');
+}
+
 function toLocalInputValue(iso) {
   const date = new Date(iso);
   const yyyy = date.getFullYear();
@@ -245,17 +262,23 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoIdOrUrl }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setErrorMessage(data.error || 'liveChatIdの保存に失敗しました');
-        return;
+      const text = await res.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(formatLiveChatError(data, `保存API失敗 status=${res.status} body=${text}`));
       }
 
       setStatusMessage(`保存しました: videoId=${data.videoId} / liveChatId=${data.liveChatId}`);
       setVideoIdOrUrl('');
       await loadCurrentStreamInfo();
     } catch (error) {
-      setErrorMessage(`liveChatIdの保存に失敗しました: ${error.message}`);
+      setErrorMessage(error.message || '保存処理に失敗しました');
     } finally {
       setIsSavingLiveChat(false);
     }
