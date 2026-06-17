@@ -154,6 +154,18 @@ export async function POST(request) {
     return NextResponse.json({ ok: true, videoId, liveChatId });
   } catch (error) {
     logCaughtError('[youtube:set-live-chat:save-db:caught]', error, { videoId, liveChatId });
-    return jsonError({ step: 'save_db', message: error.message, detail: error.stack, status: 500, videoId });
+    return jsonError({
+      step: 'save_db',
+      message: error instanceof Error ? error.message : String(error),
+      detail: error?.detail || JSON.stringify({
+        name: error instanceof Error ? error.name : undefined,
+        message: error instanceof Error ? error.message : String(error),
+        cause: String(error?.cause ?? ''),
+        stack: error instanceof Error ? error.stack : undefined,
+      }),
+      status: 500,
+      videoId,
+      saveStatus: error?.status,
+    });
   }
 }
